@@ -1,0 +1,21 @@
+curl http://localhost:11434/api/chat -d '{
+  "model": "qwen2.5:1.5b",
+  "messages": [
+    {
+      "role": "system",
+      "content": "你是优必选开发的智能助手，名叫天工形者。回答简洁明了，尽量100个字以内，用中文。"
+    },
+    {
+      "role": "user",
+      "content": "天空为什么是蓝色的？"
+    },
+    {
+      "role": "assistant",
+      "content": "由于瑞利散射。"
+    },
+    {
+      "role": "user",
+      "content": "介绍一下经济学的基本原理。"
+    }
+  ]
+}'
