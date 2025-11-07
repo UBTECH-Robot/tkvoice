@@ -3,6 +3,30 @@ set -e
 
 echo "[0/11] 检查 Ollama 服务状态..."
 
+download_file() {
+    local url="$1"
+    local output="$2"
+    local max_retries=3
+    local count=0
+
+    echo "⬇️  正在下载文件：$output"
+    echo "    来源：$url"
+
+    until [ $count -ge $max_retries ]; do
+        ((count++))
+        if wget -q --show-progress -O "$output" "$url"; then
+            echo "✅ 下载成功: $output"
+            return 0
+        else
+            echo "⚠️  下载失败 (第 $count 次)"
+            sleep 2
+        fi
+    done
+
+    echo "⛔ 下载 ${url} 到 ${output} 失败超过 ${max_retries} 次，退出脚本。您可尝试手动下载。"
+    exit 1
+}
+
 if systemctl is-active --quiet ollama; then
     echo "✅ Ollama 服务正在运行。"
 
@@ -27,17 +51,22 @@ fi
 # 安装包文件名
 BASE_TGZ="ollama-linux-arm64.tgz"
 JETPACK6_TGZ="ollama-linux-arm64-jetpack6.tgz"
+BASE_URL="https://github.com/ollama/ollama/releases/download/v0.12.6/ollama-linux-arm64.tgz"
+JETPACK6_URL="https://github.com/ollama/ollama/releases/download/v0.12.6/ollama-linux-arm64-jetpack6.tgz"
 
-# 检查安装包是否存在
 if [ ! -f "$BASE_TGZ" ]; then
-    echo "❌ 错误: $BASE_TGZ 文件未找到，请先下载基础版本 Ollama 到当前目录: https://github.com/ollama/ollama/releases/download/v0.12.6/ollama-linux-arm64.tgz"
-    exit 1
+    download_file "$BASE_URL" "$BASE_TGZ"
+else
+    echo "✅ 已存在: $BASE_TGZ"
 fi
 
 if [ ! -f "$JETPACK6_TGZ" ]; then
-    echo "❌ 错误: $JETPACK6_TGZ 文件未找到，请先下载 JetPack6 版本 Ollama 到当前目录: https://github.com/ollama/ollama/releases/download/v0.12.6/ollama-linux-arm64-jetpack6.tgz"
-    exit 1
+    download_file "$JETPACK6_URL" "$JETPACK6_TGZ"
+else
+    echo "✅ 已存在: $JETPACK6_TGZ"
 fi
+
+echo "🎉 所有 Ollama 安装包已准备就绪。"
 
 echo "[1/11] 停止并禁用旧服务..."
 sudo systemctl stop ollama 2>/dev/null || true
@@ -125,8 +154,8 @@ for i in {1..10}; do
     sleep 1
 done
 
-sudo chmod +x import_ollama_model.sh
-sudo ./import_ollama_model.sh qwen2.5_1.5b.tar.gz
+# sudo chmod +x import_ollama_model.sh
+# sudo ./import_ollama_model.sh qwen2.5_1.5b.tar.gz
 
 if curl -fs http://127.0.0.1:11434/api/tags | grep -q '"qwen2.5:1.5b"'; then
     echo "✅ 模型 qwen2.5:1.5b 导入成功。"

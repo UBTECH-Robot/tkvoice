@@ -37,6 +37,30 @@ else
     fi
 fi
 
+download_file() {
+    local url="$1"
+    local output="$2"
+    local max_retries=3
+    local count=0
+
+    echo "⬇️  正在下载文件：$output"
+    echo "    来源：$url"
+
+    until [ $count -ge $max_retries ]; do
+        ((count++))
+        if wget -q --show-progress -O "$output" "$url"; then
+            echo "✅ 下载成功: $output"
+            return 0
+        else
+            echo "⚠️  下载失败 (第 $count 次)"
+            sleep 2
+        fi
+    done
+
+    echo "⛔ 下载 ${url} 到 ${output} 失败超过 ${max_retries} 次，退出脚本。您可尝试手动下载。"
+    exit 1
+}
+
 # -----------------------------
 # 2. 安装 Docker（如需）
 # -----------------------------
@@ -51,18 +75,18 @@ if [ "$INSTALL_DOCKER" = true ]; then
         ["docker-compose-plugin_2.27.1-1~ubuntu.22.04~jammy_amd64.deb"]="https://download.docker.com/linux/ubuntu/dists/jammy/pool/stable/amd64/docker-compose-plugin_2.27.1-1~ubuntu.22.04~jammy_amd64.deb"
     )
 
-    missing=false
+    TARGET_DIR="/home/ubuntu/docker_funasr"
+    mkdir -p "$TARGET_DIR"
+
     for f in "${!DEB_FILES[@]}"; do
         if [ ! -f "$f" ]; then
-            echo "❌ 缺少安装文件: $f"
-            echo "   下载地址: ${DEB_FILES[$f]}"
-            missing=true
+            download_file "${DEB_FILES[$f]}" "$TARGET_DIR/$f"
+        else
+            echo "✅ 已存在: $f"
         fi
     done
-    if [ "$missing" = true ]; then
-        echo "⛔ 请先下载上述文件到当前目录(/home/ubuntu/docker_funasr)再执行脚本。"
-        exit 1
-    fi
+
+    echo "🎉 所有安装文件已准备就绪。"
         
     # 要安装的包
     PACKAGES=(ca-certificates curl gnupg lsb-release)

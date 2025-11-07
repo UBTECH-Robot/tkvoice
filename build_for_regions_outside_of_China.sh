@@ -72,7 +72,18 @@ fi
 echo "[INFO] 生成最终压缩包 ${RELEASE_DIR}.tar ..."
 
 tar -cvf "${RELEASE_DIR}.tar" \
-    -C . src res install.sh uninstall.sh audiolocal.sh --transform="s,^,${RELEASE_DIR}/," \
+    -C . src \
+    res/docker_funasr/asr.latest.tar.gz \
+    res/docker_funasr/model.tar.gz \
+    res/docker_funasr/install_asr.sh \
+    res/docker_funasr/uninstall_asr.sh \
+    res/docker_funasr/startup.sh \
+    res/ollama/install_ollama.sh \
+    res/ollama/uninstall_ollama.sh \
+    res/piper_voices/zh/zh_CN-huayan-medium.onnx.json \
+    res/piper_voices/zh/zh_CN-huayan-medium.onnx \
+    res/onnxruntime_gpu-1.20.1-cp310-cp310-linux_aarch64.whl \
+    install.sh uninstall.sh audiolocal.sh --transform="s,^,${RELEASE_DIR}/," \
     -C "${RELEASE_DIR}" version.txt
 
 echo "[OK] 打包完成: ${RELEASE_DIR}.tar"
