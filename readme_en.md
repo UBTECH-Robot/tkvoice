@@ -55,7 +55,7 @@ INTERRUPT_WORDS="天工,天空,天宫"
 # "Interrupt words" mean that while the system is playing audio, it is still listening. If the ASR detects any of the configured interrupt words in the recognized text, the playback will stop immediately and the system will switch back to listening mode, waiting for the user’s question. If none of the interrupt words are detected, the current utterance will be ignored. Multiple interrupt words can be configured, separated by commas.
 ```
 
-## 2. Develope
+## 2. Develop
 First, log in to the Orin board with IP 192.168.41.2.
 
 1. Clone:
