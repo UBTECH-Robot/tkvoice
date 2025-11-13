@@ -12,3 +12,4 @@ audiolocal_release_*
 *.whl
 github_first_push.sh
 *.error
+.env
