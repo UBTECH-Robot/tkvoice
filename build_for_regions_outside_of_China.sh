@@ -33,7 +33,7 @@ echo "[OK] 已更新 $SETUP_FILE 内版本号为 ${NEW_VERSION}"
 VERSION="${NEW_VERSION}"
 # --- 2. 生成时间戳与目标目录 ---
 TIMESTAMP=$(date +"%m%d_%H%M%S")
-RELEASE_DIR="audiolocal_release_${VERSION}_${TIMESTAMP}"
+RELEASE_DIR="tkvoice_release_${VERSION}_${TIMESTAMP}"
 RELEASE_PATH="$(pwd)/${RELEASE_DIR}"
 
 echo "[INFO] 创建发布目录: ${RELEASE_PATH}"
@@ -46,7 +46,7 @@ echo "${VERSION}" > "${RELEASE_PATH}/version.txt"
 # --- 3.1 更新 readme.md 中的 release_dir ---
 README_FILE="readme.md"
 README_FILE_EN="readme_en.md"
-STARTUP_FILE="audiolocal.sh"
+STARTUP_FILE="tkvoice.sh"
 INSTALL_FILE="install.sh"
 INSTALL_FILE2="install_for_regions_outside_of_China.sh"
 if [ -f "$README_FILE" ]; then
@@ -83,7 +83,7 @@ tar -cvf "${RELEASE_DIR}.tar" \
     res/piper_voices/zh/zh_CN-huayan-medium.onnx.json \
     res/piper_voices/zh/zh_CN-huayan-medium.onnx \
     res/onnxruntime_gpu-1.20.1-cp310-cp310-linux_aarch64.whl \
-    install.sh uninstall.sh audiolocal.sh --transform="s,^,${RELEASE_DIR}/," \
+    install.sh uninstall.sh tkvoice.sh --transform="s,^,${RELEASE_DIR}/," \
     -C "${RELEASE_DIR}" version.txt
 
 echo "[OK] 打包完成: ${RELEASE_DIR}.tar"

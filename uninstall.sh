@@ -2,7 +2,7 @@
 set -e
 # set -e: 遇到错误立即退出
 
-./audiolocal.sh stop || true
+./tkvoice.sh stop || true
 
 echo "[1/5] 开始卸载本地 Ollama ..."
 if [ -d "res/ollama" ]; then
@@ -33,16 +33,16 @@ else
     echo "⚠️ 无法连接远程服务器 ${REMOTE_IP}，跳过远程卸载。"
 fi
 
-sudo rm -f /home/nvidia/logs/audiolocal.log
+sudo rm -f /home/nvidia/logs/tkvoice.log
 
 
-echo "[4/5] 删除本地 audiolocal_release 相关目录 ..."
+echo "[4/5] 删除本地 tkvoice_release 相关目录 ..."
 TARGET_DIR="/home/nvidia"
 
 if [ -d "$TARGET_DIR" ]; then
     cd "$TARGET_DIR"
-    # 仅删除以 audiolocal_release_ 开头的目录，不删除 tar 包或其他文件
-    for dir in audiolocal_release_*; do
+    # 仅删除以 tkvoice_release_ 开头的目录，不删除 tar 包或其他文件
+    for dir in tkvoice_release_*; do
         if [ -d "$dir" ]; then
             echo "删除目录: $dir"
             sudo rm -rf "$dir"

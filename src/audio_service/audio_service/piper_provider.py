@@ -136,6 +136,6 @@ def main(args=None):
 if __name__ == '__main__':
     main()
 
-# cd /home/nvidia/voicelocal/audiolocal_release/src/audio_service
+# cd /home/nvidia/voicelocal/tkvoice_release/src/audio_service
 # python -m audio_service.piper_provider
 

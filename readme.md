@@ -90,17 +90,17 @@ ollama的安装步骤可参考项目根目录下 /res/ollama/install.sh 脚本�
 ## 四、代码说明
 
 整个应用的运行流程是：
-1. Orin板上 audio_publisher 节点从RK3588s获取音频流，按整句的音频流发布到 audio_sentence_frames 话题；
+1. Orin板上 tk_audio_publisher 节点从RK3588s获取音频流，按整句的音频流发布到 audio_sentence_frames 话题；
 
-2. Orin板上的节点 funasr_text_publisher 订阅 audio_sentence_frames 话题，获取到原生音频流后通过websocket发送到 x86 板子上的Funasr服务，并获取到语音识别后对应的文本，将其发布到 asr_sentence 话题；
+2. Orin板上的节点 tk_asr_text_publisher 订阅 audio_sentence_frames 话题，获取到原生音频流后通过websocket发送到 x86 板子上的Funasr服务，并获取到语音识别后对应的文本，将其发布到 asr_sentence 话题；
 
-3. Orin板上的节点 audio_process 订阅 asr_sentence 话题，获取到提问文本后，将提问发送到Ollama服务，流式获取回答。每获取到一个回答文本，就调用离线TTS库转为对应的语音，然后将语音放入AudioPlayer的播放队列，按顺序播放。
+3. Orin板上的节点 tk_audio_process 订阅 asr_sentence 话题，获取到提问文本后，将提问发送到Ollama服务，流式获取回答。每获取到一个回答文本，就调用离线TTS库转为对应的语音，然后将语音放入AudioPlayer的播放队列，按顺序播放。
 
 ## 五、开发运行
 先登录到 41.2 的 Orin 板
 1. 编译：
 ```bash
-cd audiolocal_release_0.2.11_1106_153251
+cd tkvoice_release_0.2.11_1106_153251
 rm -rf build install log && colcon build --packages-select audio_message audio_service
 ```
 
@@ -111,7 +111,7 @@ source install/setup.bash
 
 3. 通过launch文件启动应用：
 ```bash
-ros2 launch audio_service funasr_ollama_tts_process_launch.py
+ros2 launch audio_service asr_llm_tts_process_launch.py
 ```
 
 4. 对话
@@ -123,22 +123,22 @@ ros2 launch audio_service funasr_ollama_tts_process_launch.py
 
 # 安装
 
-release_dir=audiolocal_release_0.2.11_1106_153251
+release_dir=tkvoice_release_0.2.11_1106_153251
 
-1. 先从本地电脑上将 audiolocal_release_0.2.11_1106_153251.tar 传到 41.2 的 Orin 板：
+1. 先从本地电脑上将 tkvoice_release_0.2.11_1106_153251.tar 传到 41.2 的 Orin 板：
 ```bash
-scp audiolocal_release_0.2.11_1106_153251.tar nvidia@192.168.41.2:/home/nvidia
+scp tkvoice_release_0.2.11_1106_153251.tar nvidia@192.168.41.2:/home/nvidia
 ```
 
-2. 登录到 41.2 的 Orin 板后，先只解压 audiolocal_release_0.2.11_1106_153251.tar 内的安装脚本 install.sh，其他的解压工作由安装脚本按需完成：
+2. 登录到 41.2 的 Orin 板后，先只解压 tkvoice_release_0.2.11_1106_153251.tar 内的安装脚本 install.sh，其他的解压工作由安装脚本按需完成：
 ```bash
-tar -xvf audiolocal_release_0.2.11_1106_153251.tar audiolocal_release_0.2.11_1106_153251/install.sh
+tar -xvf tkvoice_release_0.2.11_1106_153251.tar tkvoice_release_0.2.11_1106_153251/install.sh
 
 ```
 
 3. 进入目录，执行安装脚本：
 ```bash
-cd audiolocal_release_0.2.11_1106_153251
+cd tkvoice_release_0.2.11_1106_153251
 chmod +x install.sh
 # 注意，执行 install.sh 的时候会多次要求输入密码，注意看清楚是需要输入 x86 上 ubuntu 用户的密码还是 Orin 板上 nvidia 用户的密码
 # 该安装脚本会做以下操作：
@@ -150,33 +150,33 @@ chmod +x install.sh
 
 4. 卸载
 ```bash
-cd ~/audiolocal_release_0.2.11_1106_153251
+cd ~/tkvoice_release_0.2.11_1106_153251
 chmod +x uninstall.sh
 ./uninstall.sh
 # 注意，执行 uninstall.sh 的时候会多次要求输入密码，注意看清楚是需要输入 x86 上 ubuntu 用户的密码还是 Orin 板上 nvidia 用户的密码，卸载脚本会卸载 Orin 板上的 ollama 和 x86 上的 Funasr 容器和镜像以及 docker 服务
-# 再注意，执行uninstall.sh 后 ~/audiolocal_release_0.2.11_1106_153251 目录会删除掉，也就是卸载脚本自身也会删除掉，但是 ~/audiolocal_release_0.2.11_1106_153251.tar 文件不会删除
+# 再注意，执行uninstall.sh 后 ~/tkvoice_release_0.2.11_1106_153251 目录会删除掉，也就是卸载脚本自身也会删除掉，但是 ~/tkvoice_release_0.2.11_1106_153251.tar 文件不会删除
 ```
 
 
 # 测试运行
 先登录到 41.2 的 Orin 板，进入目录：
 ```bash
-cd audiolocal_release_0.2.11_1106_153251
+cd tkvoice_release_0.2.11_1106_153251
 
 然后可用如下命令进行管理:
 # 启动服务
-./audiolocal.sh start
+./tkvoice.sh start
 
 # 停止服务
-./audiolocal.sh stop
+./tkvoice.sh stop
 
 # 重启服务
-./audiolocal.sh restart
+./tkvoice.sh restart
 
 # 查看状态
-./audiolocal.sh status
+./tkvoice.sh status
 
 # 查看日志"
-tail -f /home/nvidia/audiolocal_release_0.2.11_1106_153251/audiolocal.log
+tail -f /home/nvidia/tkvoice_release_0.2.11_1106_153251/tkvoice.log
 
 ```

@@ -17,7 +17,7 @@ import signal
 
 class SocketAudioPublisher(Node):
     def __init__(self):        
-        super().__init__('audio_publisher')
+        super().__init__('tk_audio_publisher')
         self.publisher_ = self.create_publisher(AudioFrame, 'audio_frames', 10)
         self.sentence_publisher_ = self.create_publisher(AudioFrame, 'audio_sentence_frames', 10)
         self.declare_parameter('save_audio', False)
@@ -52,7 +52,7 @@ class SocketAudioPublisher(Node):
         else:
             self.audio_queue = None
             self.saving_thread = None
-            self.get_logger().info(f"音频保存功能未启用，使用 ros2 run audio_service audio_publisher --ros-args -p save_audio:=true 命令可启用音频保存功能")
+            self.get_logger().info(f"音频保存功能未启用，使用 ros2 run audio_service tk_audio_publisher --ros-args -p save_audio:=true 命令可启用音频保存功能")
 
         self.receive_pub_thread = threading.Thread(target=self.keep_receiving_publish_audio)
         self.receive_pub_thread.start()    
@@ -186,7 +186,7 @@ class SocketAudioPublisher(Node):
     
 def main(args=None):
     rclpy.init(args=args)
-    audio_publisher = SocketAudioPublisher()
+    tk_audio_publisher = SocketAudioPublisher()
 
     stop_called = False
 
@@ -198,8 +198,8 @@ def main(args=None):
 
         print("接收到终止信号，准备终止程序...")
 
-        audio_publisher.close()
-        audio_publisher.destroy_node()
+        tk_audio_publisher.close()
+        tk_audio_publisher.destroy_node()
         print("节点已销毁，正在关闭 rclpy...")
         if rclpy.ok():
             rclpy.shutdown()
@@ -207,7 +207,7 @@ def main(args=None):
     signal.signal(signal.SIGTERM, lambda *args: stop_handle())
 
     try:
-        rclpy.spin(audio_publisher)
+        rclpy.spin(tk_audio_publisher)
     except KeyboardInterrupt:
         print("接收到 Ctrl+C，准备退出...")
     finally:
@@ -219,5 +219,5 @@ if __name__ == '__main__':
 # colcon build --packages-select audio_message audio_service
 # source install/setup.bash
 
-# ros2 run audio_service audio_publisher --ros-args -p save_audio:=true
-# ros2 run audio_service audio_publisher
+# ros2 run audio_service tk_audio_publisher --ros-args -p save_audio:=true
+# ros2 run audio_service tk_audio_publisher

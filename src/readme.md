@@ -28,7 +28,7 @@ colcon build --packages-select audio_message audio_service
 
 在一个终端启动音频发布节点：
 . install/setup.bash
-ros2 run audio_service audio_publisher
+ros2 run audio_service tk_audio_publisher
 会发布如下两个话题：
 
 /audio_frames
@@ -40,4 +40,4 @@ ros2 run audio_service audio_publisher
 
 在另一个终端启动示例音频接收保存节点：
 . install/setup.bash
-ros2 run audio_service audio_publisher --ros-args -p save_audio:=true 
+ros2 run audio_service tk_audio_publisher --ros-args -p save_audio:=true 

@@ -6,7 +6,7 @@ import subprocess
 def is_ros2_node_running(node_name):
     """
     检查 ROS2 节点是否运行。
-    node_name 可以是 'audio_publisher'，会匹配 /audio_publisher 或 /ns/audio_publisher
+    node_name 可以是 'tk_audio_publisher'，会匹配 /tk_audio_publisher 或 /ns/tk_audio_publisher
     """
     try:
         output = subprocess.check_output(['ros2', 'node', 'list'], text=True)
@@ -35,27 +35,27 @@ def kill_ros2_node(node_name):
 def generate_launch_description():
     launch_description = []
 
-    # 检查 audio_publisher 是否已在运行
-    if is_ros2_node_running("audio_publisher"):
-        kill_ros2_node("audio_publisher")    
+    # 检查 tk_audio_publisher 是否已在运行
+    if is_ros2_node_running("tk_audio_publisher"):
+        kill_ros2_node("tk_audio_publisher")    
         print("audio_publisher未启动，将会启动它")
 
     audio_publisher_node = Node(
         package='audio_service',
-        executable='audio_publisher',
-        name='audio_publisher',
+        executable='tk_audio_publisher',
+        name='tk_audio_publisher',
         output='screen'
     )
     launch_description.append(audio_publisher_node)
 
     # 第二个节点：文本音频发布器（依赖前者，因此用 Timer 延迟启动）
     asr_sentence_publisher_node = TimerAction(
-        period=2.0,  # 延迟2秒启动，确保 audio_publisher 先启动完成
+        period=2.0,  # 延迟2秒启动，确保 tk_audio_publisher 先启动完成
         actions=[
             Node(
                 package='audio_service',
-                executable='funasr_text_publisher',
-                name='funasr_text_publisher'
+                executable='tk_asr_text_publisher',
+                name='tk_asr_text_publisher'
             )
         ]
     )

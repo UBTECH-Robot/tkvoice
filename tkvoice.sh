@@ -1,10 +1,10 @@
 #!/bin/bash
 set -e
 
-WORKDIR="/home/nvidia/audiolocal_release_0.2.11_1106_153251"
-LAUNCH_FILE="audio_service funasr_ollama_tts_process_launch.py"
-LOG_FILE="/home/nvidia/audiolocal_release_0.2.11_1106_153251/audiolocal.log"
-NODES=("audio_publisher" "funasr_text_publisher" "audio_process")
+WORKDIR="/home/nvidia/tkvoice_release_0.2.11_1106_153251"
+LAUNCH_FILE="audio_service asr_llm_tts_process_launch.py"
+LOG_FILE="/home/nvidia/tkvoice_release_0.2.11_1106_153251/tkvoice.log"
+NODES=("tk_audio_publisher" "tk_asr_text_publisher" "tk_audio_process")
 export MODEL_DIR="${WORKDIR}/res/"
 
 # ===========================
@@ -84,7 +84,7 @@ start() {
     echo "启动 ROS2 launch 文件: $LAUNCH_FILE"
     mkdir -p "${WORKDIR}/roslogs"
     export ROS_LOG_DIR="${WORKDIR}/roslogs"
-    ros2 launch audio_service funasr_ollama_tts_process_launch.py > "$LOG_FILE" 2>&1 &
+    ros2 launch audio_service asr_llm_tts_process_launch.py > "$LOG_FILE" 2>&1 &
 
     echo ""
     echo "等待节点启动中..."

@@ -23,7 +23,7 @@ qos = QoSProfile(
 
 class FunASRTextPublisher(Node):
     def __init__(self):
-        super().__init__('funasr_text_publisher')
+        super().__init__('tk_asr_text_publisher')
         self.subscription = self.create_subscription(
             AudioFrame,
             'audio_sentence_frames',
@@ -94,7 +94,7 @@ class FunASRTextPublisher(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    audio_process = FunASRTextPublisher()
+    tk_audio_process = FunASRTextPublisher()
 
     stop_called = False
 
@@ -106,8 +106,8 @@ def main(args=None):
 
         print("接收到终止信号，准备终止程序...")
 
-        audio_process.close()
-        audio_process.destroy_node()
+        tk_audio_process.close()
+        tk_audio_process.destroy_node()
         print("节点已销毁，正在关闭 rclpy...")
         if rclpy.ok():
             rclpy.shutdown()
@@ -116,7 +116,7 @@ def main(args=None):
     
     try:
         print("开始接收音频数据...")
-        rclpy.spin(audio_process)
+        rclpy.spin(tk_audio_process)
     except KeyboardInterrupt:
         print("接收到 Ctrl+C，准备退出...")
     finally:

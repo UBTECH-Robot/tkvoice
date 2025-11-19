@@ -9,7 +9,7 @@ REMOTE_USER="ubuntu"
 REMOTE_IP="192.168.41.1"
 REMOTE_DIR="/home/ubuntu"
 
-RELEASE_DIR="audiolocal_release_0.2.11_1106_153251"
+RELEASE_DIR="tkvoice_release_0.2.11_1106_153251"
 BASE_DIR="${HOME}/${RELEASE_DIR}"
 
 echo "[INFO] 解压 res/docker_funasr 到本地临时目录..."
@@ -107,7 +107,7 @@ echo "[OK] 已删除本地临时目录 res/ollama 下除卸载脚本外的所有
 # ========================
 cd "${HOME}"
 tar -xvf "${RELEASE_DIR}.tar" \
-    "${RELEASE_DIR}/audiolocal.sh" \
+    "${RELEASE_DIR}/tkvoice.sh" \
     "${RELEASE_DIR}/version.txt" \
     "${RELEASE_DIR}/res/piper_voices/" \
     "${RELEASE_DIR}/src/"
@@ -124,17 +124,17 @@ echo ""
 echo "✅ 离线语音服务已成功安装，可用如下命令进行管理:"
 echo ""
 echo "# 启动服务"
-echo "./audiolocal.sh start"
+echo "./tkvoice.sh start"
 echo ""
 echo "# 停止服务"
-echo "./audiolocal.sh stop"
+echo "./tkvoice.sh stop"
 echo ""
 echo "# 重启服务"
-echo "./audiolocal.sh restart"
+echo "./tkvoice.sh restart"
 echo ""
 echo "# 查看状态"
-echo "./audiolocal.sh status"
+echo "./tkvoice.sh status"
 echo ""
 echo "# 查看日志"
-echo "tail -f ${BASE_DIR}/audiolocal.log"
+echo "tail -f ${BASE_DIR}/tkvoice.log"
 echo ""

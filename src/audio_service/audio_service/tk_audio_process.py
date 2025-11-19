@@ -20,7 +20,7 @@ import signal
 
 class AudioProcess(Node):
     def __init__(self):
-        super().__init__('audio_process')
+        super().__init__('tk_audio_process')
         self.stop_event = threading.Event()
         self.asr_sentence_subscription = self.create_subscription(
             String,
@@ -161,7 +161,7 @@ class AudioProcess(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    audio_process = AudioProcess()
+    tk_audio_process = AudioProcess()
     stop_called = False
 
     def stop_handle():
@@ -172,8 +172,8 @@ def main(args=None):
 
         print("接收到终止信号，准备终止程序...")
 
-        audio_process.close()
-        audio_process.destroy_node()
+        tk_audio_process.close()
+        tk_audio_process.destroy_node()
         print("节点已销毁，正在关闭 rclpy...")
         if rclpy.ok():
             rclpy.shutdown()
@@ -181,7 +181,7 @@ def main(args=None):
     signal.signal(signal.SIGTERM, lambda *args: stop_handle())
 
     try:
-        rclpy.spin(audio_process)
+        rclpy.spin(tk_audio_process)
     except KeyboardInterrupt:
         print("接收到 Ctrl+C，准备退出...")
     finally:
@@ -193,4 +193,4 @@ if __name__ == '__main__':
 
 # rm -rf build install log && colcon build --packages-select audio_message audio_service
 # source install/setup.bash
-# ros2 launch audio_service funasr_ollama_tts_process_launch.py
+# ros2 launch audio_service asr_llm_tts_process_launch.py

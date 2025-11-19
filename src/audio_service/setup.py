@@ -23,9 +23,9 @@ setup(
     license='TODO: License declaration',
     entry_points={
         'console_scripts': [
-            'audio_publisher = audio_service.audio_publisher:main',
-            'audio_process = audio_service.audio_process:main',
-            'funasr_text_publisher = audio_service.funasr_text_publisher:main',
+            'tk_audio_publisher = audio_service.tk_audio_publisher:main',
+            'tk_audio_process = audio_service.tk_audio_process:main',
+            'tk_asr_text_publisher = audio_service.tk_asr_text_publisher:main',
         ],
     },
 )

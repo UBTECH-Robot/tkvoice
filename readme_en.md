@@ -69,18 +69,18 @@ It uses the GPL-3.0 open-source license, and this project will also adopt the GP
 
 The overall flow of the application is as follows:
 
-1. The audio_publisher node on the Jetson AGX Orin obtains the audio stream from the RK3588s and publishes the audio stream in full sentences to the audio_sentence_frames topic.
+1. The tk_audio_publisher node on the Jetson AGX Orin obtains the audio stream from the RK3588s and publishes the audio stream in full sentences to the audio_sentence_frames topic.
 
-2. The funasr_text_publisher node on the Jetson AGX Orin subscribes to the audio_sentence_frames topic. After receiving the raw audio stream, it sends the data via WebSocket to the Funasr service on the x86 machine and retrieves the transcribed text. This text is then published to the asr_sentence topic.
+2. The tk_asr_text_publisher node on the Jetson AGX Orin subscribes to the audio_sentence_frames topic. After receiving the raw audio stream, it sends the data via WebSocket to the Funasr service on the x86 machine and retrieves the transcribed text. This text is then published to the asr_sentence topic.
 
-3. The audio_process node on the Jetson AGX Orin subscribes to the asr_sentence topic. Upon receiving the transcribed question text, it sends the question to the Ollama service and streams the response. For each response received, the offline TTS library is called to convert the text into speech. The generated speech is then placed into the AudioPlayer's playback queue and played in sequence.
+3. The tk_audio_process node on the Jetson AGX Orin subscribes to the asr_sentence topic. Upon receiving the transcribed question text, it sends the question to the Ollama service and streams the response. For each response received, the offline TTS library is called to convert the text into speech. The generated speech is then placed into the AudioPlayer's playback queue and played in sequence.
 
 
 ## 5. Development and Execution
 First, log in to the Jetson AGX Orin with the IP address 192.168.41.2.
 1. Compile：
 ```bash
-cd audiolocal_release_0.2.11_1106_153251
+cd tkvoice_release_0.2.11_1106_153251
 rm -rf build install log && colcon build --packages-select audio_message audio_service
 ```
 
@@ -91,7 +91,7 @@ source install/setup.bash
 
 3. Start the application by launching the launch file：
 ```bash
-ros2 launch audio_service funasr_ollama_tts_process_launch.py
+ros2 launch audio_service asr_llm_tts_process_launch.py
 ```
 
 4. Chat
@@ -102,22 +102,22 @@ ros2 launch audio_service funasr_ollama_tts_process_launch.py
 
 # Installation
 
-release_dir=audiolocal_release_0.2.11_1106_153251
+release_dir=tkvoice_release_0.2.11_1106_153251
 
-1. First, transfer the audiolocal_release_0.2.11_1106_153251.tar from your local computer to the Orin with the IP address 192.168.41.2:
+1. First, transfer the tkvoice_release_0.2.11_1106_153251.tar from your local computer to the Orin with the IP address 192.168.41.2:
 ```bash
-scp audiolocal_release_0.2.11_1106_153251.tar nvidia@192.168.41.2:/home/nvidia
+scp tkvoice_release_0.2.11_1106_153251.tar nvidia@192.168.41.2:/home/nvidia
 ```
 
-2. After logging into the Orin with IP address 41.2, first extract only the installation script install.sh from the audiolocal_release_0.2.11_1106_153251.tar file. The rest of the extraction process will be handled by the installation script as needed:
+2. After logging into the Orin with IP address 41.2, first extract only the installation script install.sh from the tkvoice_release_0.2.11_1106_153251.tar file. The rest of the extraction process will be handled by the installation script as needed:
 ```bash
-tar -xvf audiolocal_release_0.2.11_1106_153251.tar audiolocal_release_0.2.11_1106_153251/install.sh
+tar -xvf tkvoice_release_0.2.11_1106_153251.tar tkvoice_release_0.2.11_1106_153251/install.sh
 
 ```
 
 3. Navigate to the directory and execute the installation script:
 ```bash
-cd audiolocal_release_0.2.11_1106_153251
+cd tkvoice_release_0.2.11_1106_153251
 chmod +x install.sh
 # Note that when executing install.sh, you will be prompted multiple times to enter a password. Be sure to pay attention to whether the password required is for the Ubuntu user on the x86 machine or for the Nvidia user on the Orin.
 # The installation script will perform the following actions:
@@ -129,34 +129,34 @@ chmod +x install.sh
 
 4. Uninstallation
 ```bash
-cd ~/audiolocal_release_0.2.11_1106_153251
+cd ~/tkvoice_release_0.2.11_1106_153251
 chmod +x uninstall.sh
 ./uninstall.sh
 # Note that when executing uninstall.sh, you will be prompted multiple times to enter a password. Be sure to pay attention to whether the password required is for the Ubuntu user on the x86 machine or for the Nvidia user on the Jetson AGX Orin. The uninstall script will remove the Ollama service on the Jetson AGX Orin, as well as the Funasr container and image, and Docker service on the x86 machine.
-# Additionally, note that after executing uninstall.sh, the ~/audiolocal_release_0.2.11_1106_153251 directory will be deleted, meaning the uninstall script itself will also be removed. However, the ~/audiolocal_release_0.2.11_1106_153251.tar file will not be deleted.
+# Additionally, note that after executing uninstall.sh, the ~/tkvoice_release_0.2.11_1106_153251 directory will be deleted, meaning the uninstall script itself will also be removed. However, the ~/tkvoice_release_0.2.11_1106_153251.tar file will not be deleted.
 ```
 
 
 # Startup
 First, log in to the Jetson AGX Orin with IP address 41.2, and navigate to the directory:
 ```bash
-cd audiolocal_release_0.2.11_1106_153251
+cd tkvoice_release_0.2.11_1106_153251
 
 # You can then use the following commands for management:
 # start the service
-./audiolocal.sh start
+./tkvoice.sh start
 
 # stop the service
-./audiolocal.sh stop
+./tkvoice.sh stop
 
 # restart the service
-./audiolocal.sh restart
+./tkvoice.sh restart
 
 # check the status
-./audiolocal.sh status
+./tkvoice.sh status
 
 # check the logs"
-tail -f /home/nvidia/audiolocal_release_0.2.11_1106_153251/audiolocal.log
+tail -f /home/nvidia/tkvoice_release_0.2.11_1106_153251/tkvoice.log
 
 ```
 
