@@ -1,9 +1,9 @@
 #!/bin/bash
 set -e
 
-WORKDIR="/home/nvidia/tkvoice_release_0.2.11_1106_153251"
+WORKDIR="/home/nvidia/tkvoice_release_0.2.13_1120_112242"
 LAUNCH_FILE="audio_service asr_llm_tts_process_launch.py"
-LOG_FILE="/home/nvidia/tkvoice_release_0.2.11_1106_153251/tkvoice.log"
+LOG_FILE="/home/nvidia/tkvoice_release_0.2.13_1120_112242/tkvoice.log"
 NODES=("tk_audio_publisher" "tk_asr_text_publisher" "tk_audio_process")
 export MODEL_DIR="${WORKDIR}/res/"
 

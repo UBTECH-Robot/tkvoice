@@ -154,8 +154,8 @@ for i in {1..10}; do
     sleep 1
 done
 
-# sudo chmod +x import_ollama_model.sh
-# sudo ./import_ollama_model.sh qwen2.5_1.5b.tar.gz
+sudo chmod +x import_ollama_model.sh
+sudo ./import_ollama_model.sh qwen2.5_1.5b.tar.gz
 
 if curl -fs http://127.0.0.1:11434/api/tags | grep -q '"qwen2.5:1.5b"'; then
     echo "✅ 模型 qwen2.5:1.5b 导入成功。"
