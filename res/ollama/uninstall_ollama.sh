@@ -27,7 +27,7 @@ echo "[3/8] 删除 Ollama 二进制文件..."
 sudo rm -f /usr/bin/ollama /usr/local/bin/ollama || true
 
 echo "[4/8] 删除 Ollama 安装目录、缓存和日志..."
-sudo rm -rf /usr/share/ollama /usr/lib/ollama /local/lib/ollama || true
+sudo rm -rf /usr/share/ollama /usr/lib/ollama /usr/local/lib/ollama || true
 sudo rm -f /var/log/ollama.log
 sudo rm -rf ~/.ollama
 sudo rm -rf /home/ollama
