@@ -9,7 +9,7 @@ REMOTE_USER="ubuntu"
 REMOTE_IP="192.168.41.1"
 REMOTE_DIR="/home/ubuntu"
 
-RELEASE_DIR="tkvoice_release_0.2.13_1120_112242"
+RELEASE_DIR="tkvoice_release_0.2.14_1124_155538"
 BASE_DIR="${HOME}/${RELEASE_DIR}"
 
 echo "[INFO] 解压 res/docker_funasr 到本地临时目录..."

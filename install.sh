@@ -9,12 +9,16 @@ REMOTE_USER="ubuntu"
 REMOTE_IP="192.168.41.1"
 REMOTE_DIR="/home/ubuntu"
 
-RELEASE_DIR="tkvoice_release_0.2.13_1120_112242"
-BASE_DIR="${HOME}/${RELEASE_DIR}"
+RELEASE_DIR="tkvoice_release_0.2.14_1124_155538"
+
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+PARENT_DIR="$( dirname "$SCRIPT_DIR" )"
+
+BASE_DIR="${PARENT_DIR}/${RELEASE_DIR}"
 
 echo "[INFO] 解压 res/docker_funasr 到本地临时目录..."
 
-cd "${HOME}"
+cd "${PARENT_DIR}"
 
 # 检查 tar 包是否存在
 if [ ! -f "${RELEASE_DIR}.tar" ]; then
@@ -28,7 +32,7 @@ if ! tar -tf "${RELEASE_DIR}.tar" | grep -q "${RELEASE_DIR}/res/docker_funasr/";
     exit 1
 fi
 
-cd "${HOME}"
+cd "${PARENT_DIR}"
 tar -xvf "${RELEASE_DIR}.tar" \
     "${RELEASE_DIR}/uninstall.sh" \
     "${RELEASE_DIR}/res/docker_funasr/"
@@ -72,7 +76,7 @@ echo "[OK] 已删除本地临时目录 res/docker_funasr"
 # 6 安装本地 Python 包和依赖
 # ========================
 echo "[INFO] 安装 Python 依赖包..."
-cd "${HOME}"
+cd "${PARENT_DIR}"
 tar -xvf "${RELEASE_DIR}.tar" \
     "${RELEASE_DIR}/res/onnxruntime-1.23.2-cp310-cp310-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl" \
     "${RELEASE_DIR}/res/onnxruntime_gpu-1.20.1-cp310-cp310-linux_aarch64.whl" \
@@ -90,7 +94,7 @@ rm -f *.whl
 # ========================
 # 7 安装 Ollama
 # ========================
-cd "${HOME}"
+cd "${PARENT_DIR}"
 tar -xvf "${RELEASE_DIR}.tar" "${RELEASE_DIR}/res/ollama/"
 cd "${BASE_DIR}/res/ollama"
 
@@ -105,7 +109,7 @@ echo "[OK] 已删除本地临时目录 res/ollama 下除卸载脚本外的所有
 # ========================
 # 8 解压主项目并编译 ROS2
 # ========================
-cd "${HOME}"
+cd "${PARENT_DIR}"
 tar -xvf "${RELEASE_DIR}.tar" \
     "${RELEASE_DIR}/tkvoice.sh" \
     "${RELEASE_DIR}/version.txt" \
