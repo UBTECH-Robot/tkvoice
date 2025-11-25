@@ -80,7 +80,7 @@ The overall flow of the application is as follows:
 First, log in to the Jetson AGX Orin with the IP address 192.168.41.2.
 1. Compile：
 ```bash
-cd tkvoice_release_0.2.18_1125_104556
+cd tkvoice_release_0.2.19_1125_111809
 rm -rf build install log && colcon build --packages-select audio_message audio_service
 ```
 
@@ -102,22 +102,22 @@ ros2 launch audio_service asr_llm_tts_process_launch.py
 
 # Installation
 
-release_dir=tkvoice_release_0.2.18_1125_104556
+release_dir=tkvoice_release_0.2.19_1125_111809
 
-1. First, transfer the tkvoice_release_0.2.18_1125_104556.tar from your local computer to the Orin with the IP address 192.168.41.2:
+1. First, transfer the tkvoice_release_0.2.19_1125_111809.tar from your local computer to the Orin with the IP address 192.168.41.2:
 ```bash
-scp tkvoice_release_0.2.18_1125_104556.tar nvidia@192.168.41.2:/home/nvidia
+scp tkvoice_release_0.2.19_1125_111809.tar nvidia@192.168.41.2:/home/nvidia
 ```
 
-2. After logging into the Orin with IP address 41.2, first extract only the installation script install.sh from the tkvoice_release_0.2.18_1125_104556.tar file. The rest of the extraction process will be handled by the installation script as needed:
+2. After logging into the Orin with IP address 41.2, first extract only the installation script install.sh from the tkvoice_release_0.2.19_1125_111809.tar file. The rest of the extraction process will be handled by the installation script as needed:
 ```bash
-tar -xvf tkvoice_release_0.2.18_1125_104556.tar tkvoice_release_0.2.18_1125_104556/install.sh
+tar -xvf tkvoice_release_0.2.19_1125_111809.tar tkvoice_release_0.2.19_1125_111809/install.sh
 
 ```
 
 3. Navigate to the directory and execute the installation script:
 ```bash
-cd tkvoice_release_0.2.18_1125_104556
+cd tkvoice_release_0.2.19_1125_111809
 chmod +x install.sh
 # Note that when executing install.sh, you will be prompted multiple times to enter a password. Be sure to pay attention to whether the password required is for the Ubuntu user on the x86 machine or for the Nvidia user on the Orin.
 # The installation script will perform the following actions:
@@ -129,18 +129,18 @@ chmod +x install.sh
 
 4. Uninstallation
 ```bash
-cd ~/tkvoice_release_0.2.18_1125_104556
+cd ~/tkvoice_release_0.2.19_1125_111809
 chmod +x uninstall.sh
 ./uninstall.sh
 # Note that when executing uninstall.sh, you will be prompted multiple times to enter a password. Be sure to pay attention to whether the password required is for the Ubuntu user on the x86 machine or for the Nvidia user on the Jetson AGX Orin. The uninstall script will remove the Ollama service on the Jetson AGX Orin, as well as the Funasr container and image, and Docker service on the x86 machine.
-# Additionally, note that after executing uninstall.sh, the ~/tkvoice_release_0.2.18_1125_104556 directory will be deleted, meaning the uninstall script itself will also be removed. However, the ~/tkvoice_release_0.2.18_1125_104556.tar file will not be deleted.
+# Additionally, note that after executing uninstall.sh, the ~/tkvoice_release_0.2.19_1125_111809 directory will be deleted, meaning the uninstall script itself will also be removed. However, the ~/tkvoice_release_0.2.19_1125_111809.tar file will not be deleted.
 ```
 
 
 # Startup
 First, log in to the Jetson AGX Orin with IP address 41.2, and navigate to the directory:
 ```bash
-cd tkvoice_release_0.2.18_1125_104556
+cd tkvoice_release_0.2.19_1125_111809
 
 # You can then use the following commands for management:
 # start the service
@@ -156,7 +156,7 @@ cd tkvoice_release_0.2.18_1125_104556
 ./tkvoice.sh status
 
 # check the logs"
-tail -f /home/nvidia/tkvoice_release_0.2.18_1125_104556/tkvoice.log
+tail -f /home/nvidia/tkvoice_release_0.2.19_1125_111809/tkvoice.log
 
 ```
 
