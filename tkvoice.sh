@@ -1,9 +1,9 @@
 #!/bin/bash
 set -e
 
-WORKDIR="/home/nvidia/tkvoice_release_0.2.14_1124_155538"
+WORKDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 LAUNCH_FILE="audio_service asr_llm_tts_process_launch.py"
-LOG_FILE="/home/nvidia/tkvoice_release_0.2.14_1124_155538/tkvoice.log"
+LOG_FILE="${WORKDIR}/tkvoice.log"
 NODES=("tk_audio_publisher" "tk_asr_text_publisher" "tk_audio_process")
 export MODEL_DIR="${WORKDIR}/res/"
 
@@ -69,7 +69,7 @@ wait_for_nodes() {
 
 start() {
     echo "=============================="
-    echo "🚀 启动离线语音服务"
+    echo "🚀 启动tkvoice服务"
     echo "=============================="
     echo "工作目录: $WORKDIR"
     echo ""
@@ -102,14 +102,14 @@ start() {
 
 stop() {
     echo "=============================="
-    echo "🛑 停止离线语音服务"
+    echo "🛑 停止tkvoice服务"
     echo "=============================="
     kill_nodes
 }
 
 restart() {
     echo "=============================="
-    echo "🔁 重启离线语音服务"
+    echo "🔁 重启tkvoice服务"
     echo "=============================="
     stop
     echo ""
@@ -122,7 +122,7 @@ restart() {
 
 status() {
     echo "=============================="
-    echo "📊 离线语音服务运行状态"
+    echo "📊 tkvoice服务运行状态"
     echo "=============================="
     echo "工作目录: $WORKDIR"
     echo "查看日志文件: "

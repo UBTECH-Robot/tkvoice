@@ -37,7 +37,8 @@ sudo rm -f /home/nvidia/logs/tkvoice.log
 
 
 echo "[4/5] 删除本地 tkvoice_release 相关目录 ..."
-TARGET_DIR="/home/nvidia"
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+TARGET_DIR="$( dirname "$SCRIPT_DIR" )"
 
 if [ -d "$TARGET_DIR" ]; then
     cd "$TARGET_DIR"

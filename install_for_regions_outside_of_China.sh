@@ -9,7 +9,7 @@ REMOTE_USER="ubuntu"
 REMOTE_IP="192.168.41.1"
 REMOTE_DIR="/home/ubuntu"
 
-RELEASE_DIR="tkvoice_release_0.2.14_1124_155538"
+RELEASE_DIR="tkvoice_release_0.2.18_1125_104556"
 BASE_DIR="${HOME}/${RELEASE_DIR}"
 
 echo "[INFO] 解压 res/docker_funasr 到本地临时目录..."
@@ -119,7 +119,7 @@ echo "[OK] ROS2 包编译完成"
 # 9 提示信息
 # ========================
 echo ""
-echo "✅ 离线语音服务已成功安装，可用如下命令进行管理:"
+echo "✅ tkvoice服务已成功安装，可用如下命令进行管理:"
 echo ""
 echo "# 启动服务"
 echo "./tkvoice.sh start"
