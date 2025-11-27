@@ -9,7 +9,7 @@ REMOTE_USER="ubuntu"
 REMOTE_IP="192.168.41.1"
 REMOTE_DIR="/home/ubuntu"
 
-RELEASE_DIR="tkvoice_release_0.2.21_1126_170048"
+RELEASE_DIR="tkvoice_release_0.2.25_1127_113139"
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 PARENT_DIR="$( dirname "$SCRIPT_DIR" )"
@@ -36,6 +36,8 @@ cd "${PARENT_DIR}"
 tar -xvf "${RELEASE_DIR}.tar" \
     "${RELEASE_DIR}/uninstall.sh" \
     "${RELEASE_DIR}/res/docker_funasr/"
+# tar --delete -f "${RELEASE_DIR}.tar" "${RELEASE_DIR}/res/docker_funasr/"
+
 cd "${BASE_DIR}"
 
 # ========================
@@ -101,7 +103,7 @@ tar -xvf "${RELEASE_DIR}.tar" "${RELEASE_DIR}/res/ollama/uninstall_ollama.sh" \
     
 cd "${BASE_DIR}/res/ollama"
 
-./install_ollama.sh "${BASE_DIR}"
+./install_ollama.sh "${PARENT_DIR}" "${RELEASE_DIR}"
 echo "[OK] Ollama 安装完成"
 
 cd "${BASE_DIR}/res/ollama"

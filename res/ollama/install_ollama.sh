@@ -2,7 +2,9 @@
 set -e
 
 echo "[0/11] 检查 Ollama 服务状态..."
-BASE_DIR="$1"
+PARENT_DIR="$1"
+RELEASE_DIR="$2"
+BASE_DIR="${PARENT_DIR}/${RELEASE_DIR}"
 
 download_file() {
     local url="$1"
@@ -74,13 +76,14 @@ BASE_URL="https://github.com/ollama/ollama/releases/download/v0.12.6/ollama-linu
 JETPACK6_URL="https://github.com/ollama/ollama/releases/download/v0.12.6/ollama-linux-arm64-jetpack6.tgz"
 
 if [ ! -f "$BASE_TGZ" ]; then
-    if ! tar -tf "${BASE_DIR}.tar" | grep -q "${BASE_DIR}/res/ollama/${BASE_TGZ}"; then
-        echo "[ERROR] 发布包中未找到 ${BASE_DIR}/res/ollama/${BASE_TGZ}，尝试下载..."
+    if ! tar -tf "${BASE_DIR}.tar" | grep -q "/res/ollama/${BASE_TGZ}"; then
+        echo "[WARN] 发布包中未找到 /res/ollama/${BASE_TGZ}，尝试下载..."
         download_file "$BASE_URL" "$BASE_TGZ"
-    elif
+    else
         echo "📦 从发布包中提取Ollama基础包 ${BASE_TGZ}..."
-        tar -xvf "${BASE_DIR}.tar" \
-            "${BASE_DIR}/res/ollama/${BASE_TGZ}"
+        tar -C "${PARENT_DIR}" -xvf "${BASE_DIR}.tar" \
+            "${RELEASE_DIR}/res/ollama/${BASE_TGZ}"
+        # tar --delete -f "${BASE_DIR}.tar" "${RELEASE_DIR}/res/ollama/${BASE_TGZ}"
     fi
 else
     echo "✅ 已存在: $BASE_TGZ"
@@ -96,13 +99,14 @@ fi
 
 
 if [ ! -f "$JETPACK6_TGZ" ]; then
-    if ! tar -tf "${BASE_DIR}.tar" | grep -q "${BASE_DIR}/res/ollama/${JETPACK6_TGZ}"; then
-        echo "[ERROR] 发布包中未找到 ${BASE_DIR}/res/ollama/${JETPACK6_TGZ}，尝试下载..."
+    if ! tar -tf "${BASE_DIR}.tar" | grep -q "/res/ollama/${JETPACK6_TGZ}"; then
+        echo "[WARN] 发布包中未找到 /res/ollama/${JETPACK6_TGZ}，尝试下载..."
         download_file "$JETPACK6_URL" "$JETPACK6_TGZ"
-    elif
+    else
         echo "📦 从发布包中提取Ollama JetPack6包 ${JETPACK6_TGZ}..."
-        tar -xvf "${BASE_DIR}.tar" \
-            "${BASE_DIR}/res/ollama/${JETPACK6_TGZ}"
+        tar -C "${PARENT_DIR}" -xvf "${BASE_DIR}.tar" \
+            "${RELEASE_DIR}/res/ollama/${JETPACK6_TGZ}"
+        # tar --delete -f "${BASE_DIR}.tar" "${RELEASE_DIR}/res/ollama/${JETPACK6_TGZ}"
     fi
 else
     echo "✅ 已存在: $JETPACK6_TGZ"
@@ -170,7 +174,7 @@ for i in {1..10}; do
 done
 
 sudo chmod +x import_ollama_model.sh
-sudo ./import_ollama_model.sh qwen2.5_1.5b.tar.gz $BASE_DIR
+sudo ./import_ollama_model.sh qwen2.5_1.5b.tar.gz "${PARENT_DIR}" "${RELEASE_DIR}"
 
 if curl -fs http://127.0.0.1:11434/api/tags | grep -q '"qwen2.5:1.5b"'; then
     echo "✅ 模型 qwen2.5:1.5b 导入成功。"

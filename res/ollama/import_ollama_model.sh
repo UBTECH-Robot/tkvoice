@@ -8,13 +8,16 @@
 set -e
 
 # 参数检查
-if [ $# -ne 1 ]; then
-    echo "用法: $0 <模型打包文件.tar.gz>"
+if [ $# -ne 3 ]; then
+    echo "用法: $0 <模型打包文件.tar.gz> <PARENT_DIR> <RELEASE_DIR>"
     exit 1
 fi
 
 TAR_FILE="$1"
-BASE_DIR="$2"
+PARENT_DIR="$2"
+RELEASE_DIR="$3"
+BASE_DIR="${PARENT_DIR}/${RELEASE_DIR}"
+
 OLLAMA_DIR="/home/ollama/.ollama/models"
 LOG_FILE="./import_model.log"
 
@@ -28,15 +31,16 @@ echo ""
 
 # 检查文件存在
 if [ ! -f "$TAR_FILE" ]; then
-    echo "❌ 错误：找不到文件：$TAR_FILE"
-    if ! tar -tf "${BASE_DIR}.tar" | grep -q "${BASE_DIR}/res/ollama/${TAR_FILE}"; then
-        echo "[ERROR] 发布包中未找到 ${BASE_DIR}/res/ollama/${TAR_FILE}"
+    echo "警告：找不到文件：$TAR_FILE"
+    if ! tar -tf "${BASE_DIR}.tar" | grep -q "/res/ollama/${TAR_FILE}"; then
+        echo "[ERROR] 发布包中未找到 /res/ollama/${TAR_FILE}"
         exit 1
     fi
     echo "📦 从发布包中提取Ollama模型文件 ${TAR_FILE}..."
 
-    tar -xvf "${BASE_DIR}.tar" \
-        "${BASE_DIR}/res/ollama/${TAR_FILE}"
+    tar -C "${PARENT_DIR}" -xvf "${BASE_DIR}.tar" \
+        "${RELEASE_DIR}/res/ollama/${TAR_FILE}"
+    # tar --delete -f "${BASE_DIR}.tar" "${RELEASE_DIR}/res/ollama/${TAR_FILE}"
 fi
 
 # 确保 Ollama 模型目录存在
