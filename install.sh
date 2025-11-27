@@ -95,10 +95,13 @@ rm -f *.whl
 # 7 安装 Ollama
 # ========================
 cd "${PARENT_DIR}"
-tar -xvf "${RELEASE_DIR}.tar" "${RELEASE_DIR}/res/ollama/"
+tar -xvf "${RELEASE_DIR}.tar" "${RELEASE_DIR}/res/ollama/uninstall_ollama.sh" \
+    "${RELEASE_DIR}/res/ollama/install_ollama.sh" \
+    "${RELEASE_DIR}/res/ollama/import_ollama_model.sh"
+    
 cd "${BASE_DIR}/res/ollama"
 
-./install_ollama.sh
+./install_ollama.sh "${BASE_DIR}"
 echo "[OK] Ollama 安装完成"
 
 cd "${BASE_DIR}/res/ollama"

@@ -2,6 +2,7 @@
 set -e
 
 echo "[0/11] 检查 Ollama 服务状态..."
+BASE_DIR="$1"
 
 download_file() {
     local url="$1"
@@ -48,27 +49,7 @@ else
     echo "⚠️ Ollama 服务未运行，开始执行安装流程..."
 fi
 
-# 安装包文件名
-BASE_TGZ="ollama-linux-arm64.tgz"
-JETPACK6_TGZ="ollama-linux-arm64-jetpack6.tgz"
-BASE_URL="https://github.com/ollama/ollama/releases/download/v0.12.6/ollama-linux-arm64.tgz"
-JETPACK6_URL="https://github.com/ollama/ollama/releases/download/v0.12.6/ollama-linux-arm64-jetpack6.tgz"
-
-if [ ! -f "$BASE_TGZ" ]; then
-    download_file "$BASE_URL" "$BASE_TGZ"
-else
-    echo "✅ 已存在: $BASE_TGZ"
-fi
-
-if [ ! -f "$JETPACK6_TGZ" ]; then
-    download_file "$JETPACK6_URL" "$JETPACK6_TGZ"
-else
-    echo "✅ 已存在: $JETPACK6_TGZ"
-fi
-
-echo "🎉 所有 Ollama 安装包已准备就绪。"
-
-echo "[1/11] 停止并禁用旧服务..."
+echo "[1/11] 先尝试停止并禁用旧服务..."
 sudo systemctl stop ollama 2>/dev/null || true
 sudo systemctl disable ollama 2>/dev/null || true
 
@@ -85,6 +66,25 @@ echo "[3/11] 删除旧用户和组..."
 sudo userdel -r ollama 2>/dev/null || true
 sudo groupdel ollama 2>/dev/null || true
 
+
+# 安装包文件名
+BASE_TGZ="ollama-linux-arm64.tgz"
+JETPACK6_TGZ="ollama-linux-arm64-jetpack6.tgz"
+BASE_URL="https://github.com/ollama/ollama/releases/download/v0.12.6/ollama-linux-arm64.tgz"
+JETPACK6_URL="https://github.com/ollama/ollama/releases/download/v0.12.6/ollama-linux-arm64-jetpack6.tgz"
+
+if [ ! -f "$BASE_TGZ" ]; then
+    if ! tar -tf "${BASE_DIR}.tar" | grep -q "${BASE_DIR}/res/ollama/${BASE_TGZ}"; then
+        echo "[ERROR] 发布包中未找到 ${BASE_DIR}/res/ollama/${BASE_TGZ}，尝试下载..."
+        download_file "$BASE_URL" "$BASE_TGZ"
+    elif
+        echo "📦 从发布包中提取Ollama基础包 ${BASE_TGZ}..."
+        tar -xvf "${BASE_DIR}.tar" \
+            "${BASE_DIR}/res/ollama/${BASE_TGZ}"
+    fi
+else
+    echo "✅ 已存在: $BASE_TGZ"
+fi
 echo "[4/11] 安装基础 Ollama..."
 sudo tar -C /usr -xzvf "$BASE_TGZ"
 sudo rm -rf "$BASE_TGZ"
@@ -92,6 +92,20 @@ sudo rm -rf "$BASE_TGZ"
 if [ ! -f /usr/bin/ollama ]; then
     echo "❌ 错误: /usr/bin/ollama 未找到，请检查 $BASE_TGZ 内容"
     exit 1
+fi
+
+
+if [ ! -f "$JETPACK6_TGZ" ]; then
+    if ! tar -tf "${BASE_DIR}.tar" | grep -q "${BASE_DIR}/res/ollama/${JETPACK6_TGZ}"; then
+        echo "[ERROR] 发布包中未找到 ${BASE_DIR}/res/ollama/${JETPACK6_TGZ}，尝试下载..."
+        download_file "$JETPACK6_URL" "$JETPACK6_TGZ"
+    elif
+        echo "📦 从发布包中提取Ollama JetPack6包 ${JETPACK6_TGZ}..."
+        tar -xvf "${BASE_DIR}.tar" \
+            "${BASE_DIR}/res/ollama/${JETPACK6_TGZ}"
+    fi
+else
+    echo "✅ 已存在: $JETPACK6_TGZ"
 fi
 
 echo "[5/11] 覆盖安装 JetPack6 GPU 优化版本..."
@@ -144,8 +158,7 @@ sudo systemctl start ollama
 echo "✅ Ollama 已成功安装并启动。"
 systemctl status ollama --no-pager
 
-# echo "[10/11] 清理安装包..."
-# rm -rf "$BASE_TGZ" "$JETPACK6_TGZ"
+
 echo "[10/11] 等待 Ollama 服务启动..."
 for i in {1..10}; do
     if curl -fs http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
@@ -157,7 +170,7 @@ for i in {1..10}; do
 done
 
 sudo chmod +x import_ollama_model.sh
-sudo ./import_ollama_model.sh qwen2.5_1.5b.tar.gz
+sudo ./import_ollama_model.sh qwen2.5_1.5b.tar.gz $BASE_DIR
 
 if curl -fs http://127.0.0.1:11434/api/tags | grep -q '"qwen2.5:1.5b"'; then
     echo "✅ 模型 qwen2.5:1.5b 导入成功。"

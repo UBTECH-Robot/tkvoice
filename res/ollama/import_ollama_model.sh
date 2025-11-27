@@ -14,6 +14,7 @@ if [ $# -ne 1 ]; then
 fi
 
 TAR_FILE="$1"
+BASE_DIR="$2"
 OLLAMA_DIR="/home/ollama/.ollama/models"
 LOG_FILE="./import_model.log"
 
@@ -28,7 +29,14 @@ echo ""
 # 检查文件存在
 if [ ! -f "$TAR_FILE" ]; then
     echo "❌ 错误：找不到文件：$TAR_FILE"
-    exit 1
+    if ! tar -tf "${BASE_DIR}.tar" | grep -q "${BASE_DIR}/res/ollama/${TAR_FILE}"; then
+        echo "[ERROR] 发布包中未找到 ${BASE_DIR}/res/ollama/${TAR_FILE}"
+        exit 1
+    fi
+    echo "📦 从发布包中提取Ollama模型文件 ${TAR_FILE}..."
+
+    tar -xvf "${BASE_DIR}.tar" \
+        "${BASE_DIR}/res/ollama/${TAR_FILE}"
 fi
 
 # 确保 Ollama 模型目录存在
@@ -36,6 +44,7 @@ echo "🗂️ 确保目标目录存在..."
 sudo mkdir -p "$OLLAMA_DIR" || { echo "Failed to create dir"; }
 sudo tar -zxvf "$TAR_FILE" -C "$OLLAMA_DIR" || { echo "Failed to extract"; }
 sudo chown -R ollama:ollama "$OLLAMA_DIR" || { echo "Failed to chown"; }
+sudo rm -rf "$TAR_FILE"
 
 MAX_RETRIES=3
 RETRY_DELAY=5  # 每次重试间隔秒数
