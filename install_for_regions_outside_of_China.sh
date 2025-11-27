@@ -9,7 +9,7 @@ REMOTE_USER="ubuntu"
 REMOTE_IP="192.168.41.1"
 REMOTE_DIR="/home/ubuntu"
 
-RELEASE_DIR="tkvoice_release_0.2.19_1125_111809"
+RELEASE_DIR="tkvoice_release_0.2.21_1126_170048"
 BASE_DIR="${HOME}/${RELEASE_DIR}"
 
 echo "[INFO] 解压 res/docker_funasr 到本地临时目录..."
@@ -77,9 +77,9 @@ tar -xvf "${RELEASE_DIR}.tar" \
     "${RELEASE_DIR}/res/onnxruntime_gpu-1.20.1-cp310-cp310-linux_aarch64.whl"
 
 cd "${BASE_DIR}/res"
-python3 -m pip uninstall onnxruntime piper-tts onnxruntime-gpu -y || true
+python3 -m pip uninstall onnxruntime piper-tts onnxruntime-gpu -y || sudo python3 -m pip uninstall onnxruntime piper-tts onnxruntime-gpu -y || true
 python3 -m pip install --no-cache-dir onnxruntime==1.23.2 piper_tts==1.3.0 httpx==0.28.1 websockets==15.0.1
-python3 -m pip uninstall onnxruntime -y || true
+python3 -m pip uninstall onnxruntime -y || sudo python3 -m pip uninstall onnxruntime -y || true
 python3 -m pip install --no-cache-dir onnxruntime_gpu-1.20.1-cp310-cp310-linux_aarch64.whl
 echo "[OK] Python 依赖安装完成"
 

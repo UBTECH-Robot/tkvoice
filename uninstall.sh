@@ -19,7 +19,7 @@ fi
 
 
 echo "[2/5] 卸载本地 Python 包 ..."
-python3 -m pip uninstall onnxruntime piper-tts onnxruntime-gpu httpx websockets -y || true
+python3 -m pip uninstall onnxruntime piper-tts onnxruntime-gpu httpx websockets -y || sudo python3 -m pip uninstall onnxruntime piper-tts onnxruntime-gpu httpx websockets -y || true
 
 echo "[3/5] 在远程服务器上卸载 ASR 服务 ..."
 REMOTE_USER="ubuntu"

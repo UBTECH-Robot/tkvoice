@@ -87,6 +87,7 @@ sudo groupdel ollama 2>/dev/null || true
 
 echo "[4/11] 安装基础 Ollama..."
 sudo tar -C /usr -xzvf "$BASE_TGZ"
+sudo rm -rf "$BASE_TGZ"
 
 if [ ! -f /usr/bin/ollama ]; then
     echo "❌ 错误: /usr/bin/ollama 未找到，请检查 $BASE_TGZ 内容"
@@ -95,6 +96,7 @@ fi
 
 echo "[5/11] 覆盖安装 JetPack6 GPU 优化版本..."
 sudo tar -C /usr -xzvf "$JETPACK6_TGZ"
+sudo rm -rf "$JETPACK6_TGZ"
 
 echo "[6/11] 创建 Ollama 用户与主目录..."
 sudo useradd -m -d /home/ollama -s /usr/sbin/nologin -U ollama 2>/dev/null || true

@@ -15,14 +15,12 @@ fi
 
 TAR_FILE="$1"
 OLLAMA_DIR="/home/ollama/.ollama/models"
-TMP_DIR="./ollama_import_tmp_$$"
 LOG_FILE="./import_model.log"
 
 echo "=============================================="
 echo "🔍 模型导入开始：$(date '+%F %T')"
 echo "📦 模型文件：$TAR_FILE"
 echo "📁 目标目录：$OLLAMA_DIR"
-echo "🧩 临时目录：$TMP_DIR"
 echo "📜 日志文件：$LOG_FILE"
 echo "=============================================="
 echo ""
@@ -33,38 +31,11 @@ if [ ! -f "$TAR_FILE" ]; then
     exit 1
 fi
 
-# 创建临时目录
-mkdir -p "$TMP_DIR"
-
-# 解压模型到临时目录（避免直接污染目标目录）
-echo "🧰 正在解压模型包..."
-tar -xzvf "$TAR_FILE" -C "$TMP_DIR"
-
 # 确保 Ollama 模型目录存在
 echo "🗂️ 确保目标目录存在..."
-sudo -u ollama mkdir -p "$OLLAMA_DIR"
-
-# 移动 manifests 目录
-if [ -d "$TMP_DIR/manifests" ]; then
-    echo "[INFO] 移动 manifests 到 $OLLAMA_DIR ..."
-    sudo mv -v "$TMP_DIR/manifests" "$OLLAMA_DIR/" | tee -a "$LOG_FILE"
-else
-    echo "[WARN] 未找到 $TMP_DIR/manifests 目录，跳过。"
-fi
-
-# 移动 blobs 目录
-if [ -d "$TMP_DIR/blobs" ]; then
-    echo "[INFO] 移动 blobs 到 $OLLAMA_DIR ..."
-    sudo mv -v "$TMP_DIR/blobs" "$OLLAMA_DIR/" | tee -a "$LOG_FILE"
-else
-    echo "[WARN] 未找到 $TMP_DIR/blobs 目录，跳过。"
-fi
-
-sudo chown -R ollama:ollama "$OLLAMA_DIR"
-
-# 删除临时目录
-echo "🧹 清理临时目录..."
-sudo rm -rf "$TMP_DIR"
+sudo mkdir -p "$OLLAMA_DIR" || { echo "Failed to create dir"; }
+sudo tar -zxvf "$TAR_FILE" -C "$OLLAMA_DIR" || { echo "Failed to extract"; }
+sudo chown -R ollama:ollama "$OLLAMA_DIR" || { echo "Failed to chown"; }
 
 MAX_RETRIES=3
 RETRY_DELAY=5  # 每次重试间隔秒数
