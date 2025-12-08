@@ -9,7 +9,7 @@ REMOTE_USER="ubuntu"
 REMOTE_IP="192.168.41.1"
 REMOTE_DIR="/home/ubuntu"
 
-RELEASE_DIR="tkvoice_release_0.2.25_1127_113139"
+RELEASE_DIR="tkvoice_release_0.2.26_1201_164512"
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 PARENT_DIR="$( dirname "$SCRIPT_DIR" )"
