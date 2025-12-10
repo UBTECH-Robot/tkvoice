@@ -4,6 +4,9 @@
 整个项目无特殊说明的部分都是以 Apache-2.0 license 开源的，特殊部分为直接依赖 piper-tts 的代码，因为受 piper-tts 的 GPL-3.0 license 的限制，因此也以 GPL-3.0 license 开源。
 
 # 开发需知
+
+注意：以下一到三仅是对本项目的各部分依赖如何单独安装进行了简单介绍，以增加对项目的了解，如果只是想知道如何快速进行安装，可以直接看下面的 **安装** 步骤。如果想详细了解各依赖安装过程，请参考项目根目录下的 `2.项目各依赖安装过程详细说明.md`
+
 ## 一、离线ASR能力
 使用的Funasr，服务运行在 192.168.41.1 x86 机器，是一个docker服务，镜像是 asr:latest 。
 
@@ -11,7 +14,7 @@
 
 ### 1.1 docker的安装
 
-方法一、可参考项目根目录下 `/res/docker/install.sh` 脚本，里面标注了应该如何下载docker的离线安装包，以及如何进行安装。当前安装脚本，会启动funasr容器，并在 10097 端口提供服务。
+方法一、可参考项目根目录下 `/res/docker/install_asr.sh` 脚本，里面标注了应该如何下载docker的离线安装包，以及如何进行安装。当前安装脚本，会启动funasr容器，并在 10097 端口提供服务。
 
 方法二、参考如下步骤：
 ```bash
@@ -22,23 +25,10 @@ sudo bash install_docker.sh
 下面两种启动镜像的方式可选一种：
 
 ### 1.2.1 使用现有镜像启动容器（选项1）
-加载镜像：
-```bash
-# 先将 /res/docker/ 目录下的 asr.latest.tar.gz 文件传到 x86 的当前目录，再执行如下命令
-docker load < asr.latest.tar.gz
-```
-启动容器：
-```bash
-sudo docker run -d --privileged=true \
-  -v /home/ubuntu/Documents/asr-runtime-resources/models:/workspace/models \
-  -v /home/ubuntu/Documents/asr-runtime-resources/startup.sh:/workspace/startup.sh \
-  -w /workspace -p 10097:10095 --restart=on-failure:3 \
-  asr:latest \
-  bash /workspace/startup.sh
-```
+使用 `/res/docker/install_asr.sh` 脚本，直接导入项目准备好的funasr镜像，并启动容器。
 
 ### 1.2.2 拉取镜像并启动（选项2）
-参考：https://github.com/modelscope/FunASR/blob/main/runtime/docs/SDK_advanced_guide_offline_zh.md
+参考Funasr官方文档：https://github.com/modelscope/FunASR/blob/main/runtime/docs/SDK_advanced_guide_offline_zh.md
 安装完成后，通过下述命令拉取并启动FunASR软件包的docker镜像：
 
 ```bash
@@ -50,7 +40,7 @@ sudo docker run --restart=always -p 10097:10095 -it --privileged=true \
   registry.cn-hangzhou.aliyuncs.com/funasr_repo/funasr:funasr-runtime-sdk-cpu-0.4.7
 ```
 
-### 1.3 服务端启动（仅使用选项2时需要执行）
+### 1.3 服务端启动（仅在参考Funasr官方文档拉取Funasr镜像后需要执行）
 docker启动之后，进入到docker里边启动 funasr-wss-server服务程序：
 ```bash
 cd FunASR/runtime
@@ -62,15 +52,6 @@ nohup bash run_server.sh \
   --lm-dir damo/speech_ngram_lm_zh-cn-ai-wesp-fst \
   --itn-dir thuduj12/fst_itn_zh \
   --hotword /workspace/models/hotwords.txt > log.txt 2>&1 &
-
-# 如果您想关闭ssl，增加参数：--certfile 0
-# 如果您想使用SenseVoiceSmall模型、时间戳、nn热词模型进行部署，请设置--model-dir为对应模型：
-#   iic/SenseVoiceSmall-onnx
-#   damo/speech_paraformer-large-vad-punc_asr_nat-zh-cn-16k-common-vocab8404-onnx（时间戳）
-#   damo/speech_paraformer-large-contextual_asr_nat-zh-cn-16k-common-vocab8404-onnx（nn热词）
-# 如果您想在服务端加载热词，可在宿主机文件./funasr-runtime-resources/models/hotwords.txt配置热词（docker映射地址为/workspace/models/hotwords.txt）:
-#   每行一个热词，格式(热词 权重)：阿里巴巴 20（注：热词理论上无限制，但为了兼顾性能和效果，建议热词长度不超过10，个数不超过1k，权重1~100）
-# SenseVoiceSmall-onnx识别结果中“<|zh|><|NEUTRAL|><|Speech|> ”分别为对应的语种、情感、事件信息
 ```
 
 请注意 docker 的安装是在41.1的 x86 机器上。
@@ -78,7 +59,7 @@ nohup bash run_server.sh \
 ## 二、离线大语言模型
 使用的Ollama，服务运行在 192.168.41.2 Orin板，Orin板有275 tops的GPU算力，相对而言更适合运行大语言模型。所以使用本项目自然语言理解的前提是需要在 41.2 Orin板上安装了Ollama服务，并且拉取下来 qwen2.5:1.5b 模型，项目内默认使用的是这个模型。
 
-ollama的安装步骤可参考项目根目录下 /res/ollama/install.sh 脚本，里面也有注释标明如何下载 ollama 的安装包，以及详细安装步骤。请注意 ollama 的安装是在41.2的 Orin 板机器上。
+ollama的安装步骤可参考项目根目录下 `/res/ollama/install_ollama.sh` 脚本，里面也有注释标明如何下载 ollama 的安装包，以及详细安装步骤。请注意 ollama 的安装是在41.2的 Orin 板机器上。
 
 ## 三、离线TTS能力
 使用的piper-tts，其 pypi 主页为：https://pypi.org/project/piper-tts/
@@ -86,6 +67,7 @@ ollama的安装步骤可参考项目根目录下 /res/ollama/install.sh 脚本�
 其 Python API 使用介绍在 github: https://github.com/OHF-Voice/piper1-gpl/blob/main/docs/API_PYTHON.md
 
 其使用 GPL-3.0 license 开源协议，本项目也将使用 GPL-3.0 协议。
+
 
 ## 四、代码说明
 
@@ -129,6 +111,8 @@ release_dir=tkvoice_release_0.2.26_1201_164512
 ```bash
 scp tkvoice_release_0.2.26_1201_164512.tar nvidia@192.168.41.2:/home/nvidia
 ```
+
+根目录的 `install.sh` 脚本已整合了 `/res/docker/install_asr.sh` 和 `/res/ollama/install_ollama.sh` 以及 .whl 包的安装，直接执行，顺利的话就可直接完成docker，funasr，ollama，piper的安装。
 
 2. 登录到 41.2 的 Orin 板后，先只解压 tkvoice_release_0.2.26_1201_164512.tar 内的安装脚本 install.sh，其他的解压工作由安装脚本按需完成：
 ```bash
