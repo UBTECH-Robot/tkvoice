@@ -1,170 +1,190 @@
-# Introduction
-The entire project includes offline ASR capabilities (using Funasr), offline large language models (using Ollama), and offline TTS capabilities (using piper-tts).
+# Preface
 
-Unless otherwise specified, all parts of this project are released under the Apache License 2.0.
-The specific parts that directly depend on Piper-TTS are subject to the GPL-3.0 license due to Piper-TTS's licensing, and are therefore released under the GPL-3.0 license.
+This project integrates offline ASR capability (using Funasr), offline large language models (using Ollama), and offline TTS capability (using piper-tts).
+
+Unless otherwise specified, the entire project is open-sourced under the Apache-2.0 license. Special parts that directly depend on piper-tts are restricted by piper-tts's GPL-3.0 license, so they are also open-sourced under the GPL-3.0 license.
 
 # Development Notes
-## 1. Offline ASR Capability
-The ASR capability uses Funasr, and the service runs on an x86 machine with the IP address 192.168.41.1. It is a Docker service, and the image used is asr:latest.
 
-Therefore, the prerequisite for using the ASR functionality in this project is to have Docker installed on the x86 machine, pull the asr:latest image, and then start a Funasr container.
+Note: The following sections 1 to 3 provide a brief introduction on how to separately install various dependencies of this project to enhance understanding. If you only want to know how to quickly install the project, you can directly go to the **Installation** section below. For detailed information about the dependency installation process, please refer to `2.Dependencies_Installation_Guide_EN.md` in the project root directory.
 
-### 1.1 docker installation
+## I. Offline ASR Capability
 
-#### Method 1
-You can refer to the script /res/docker/install.sh in the project root directory. It provides instructions on how to download the offline Docker installation package and how to install it. The current installation script will start the Funasr container and provide the service on port 10097.
+Using Funasr, the service runs on the 192.168.41.1 x86 machine as a Docker service with image `asr:latest`.
 
-#### Method 2
-Follow the steps below:
+The prerequisite for using the ASR capability of this project is to install Docker service on x86 and pull the `asr:latest` image, then start a Funasr container.
+
+### 1.1 Docker Installation
+
+**Method 1:** You can refer to the `/res/docker_funasr/install_asr.sh` script in the project root directory, which has notes on how to download the Docker offline installation package and how to install it. The current installation script will start the Funasr container and provide service on port 10097.
+
+**Method 2:** Follow these steps:
 ```bash
-curl -O https://isv-data.oss-cn-hangzhou.aliyuncs.com/ics/MaaS/ASR/shell/install_docker.sh；
+curl -O https://isv-data.oss-cn-hangzhou.aliyuncs.com/ics/MaaS/ASR/shell/install_docker.sh
 sudo bash install_docker.sh
 ```
 
-#### Method 3
-Or you can just follow the docker official installation guides: https://docs.docker.com/engine/install/ubuntu/
+Choose one of the following two ways to start the image:
 
+### 1.2.1 Start Container with Existing Image (Option 1)
 
-下面两种启动镜像的方式可选一种：
+Use the `/res/docker_funasr/install_asr.sh` script to directly import the Funasr image prepared by the project and start the container.
 
-### 1.2.1 Start the Container Using the Existing Image (Option 1)
-Load docker image：
+### 1.2.2 Pull Image and Start (Option 2)
+
+Refer to the official Funasr documentation: https://github.com/modelscope/FunASR/blob/main/runtime/docs/SDK_advanced_guide_offline_zh.md
+
+After installation is complete, pull and start the FunASR Docker image with the following command:
+
 ```bash
-# First, transfer the asr.latest.tar.gz file from the /res/docker/ directory to the current directory on the x86 machine, and then execute the following command:
-docker load < asr.latest.tar.gz
+sudo docker pull \
+  registry.cn-hangzhou.aliyuncs.com/funasr_repo/funasr:funasr-runtime-sdk-cpu-0.4.7
+mkdir -p ./funasr-runtime-resources/models
+sudo docker run --restart=always -p 10097:10095 -it --privileged=true \
+  -v $PWD/funasr-runtime-resources/models:/workspace/models \
+  registry.cn-hangzhou.aliyuncs.com/funasr_repo/funasr:funasr-runtime-sdk-cpu-0.4.7
 ```
 
-Start container：
+### 1.3 Server Startup (Only required after pulling Funasr image according to official documentation)
+
+After Docker starts, enter the container and start the funasr-wss-server service:
+
 ```bash
-sudo docker run -d --privileged=true \
-  -v /home/ubuntu/Documents/asr-runtime-resources/models:/workspace/models \
-  -v /home/ubuntu/Documents/asr-runtime-resources/startup.sh:/workspace/startup.sh \
-  -w /workspace -p 10097:10095 --restart=on-failure:3 \
-  asr:latest \
-  bash /workspace/startup.sh
+cd FunASR/runtime
+nohup bash run_server.sh \
+  --download-model-dir /workspace/models \
+  --vad-dir damo/speech_fsmn_vad_zh-cn-16k-common-onnx \
+  --model-dir damo/speech_paraformer-large-vad-punc_asr_nat-zh-cn-16k-common-vocab8404-onnx  \
+  --punc-dir damo/punc_ct-transformer_cn-en-common-vocab471067-large-onnx \
+  --lm-dir damo/speech_ngram_lm_zh-cn-ai-wesp-fst \
+  --itn-dir thuduj12/fst_itn_zh \
+  --hotword /workspace/models/hotwords.txt > log.txt 2>&1 &
 ```
 
-### 1.2.2 Pull the Image and Start the Container (Option 2)
-Reference：https://github.com/modelscope/FunASR/blob/main/runtime/docs/SDK_advanced_guide_offline_en.md
+Please note that Docker installation is done on the x86 machine at 41.1.
 
+## II. Offline Large Language Models
 
-Please note that Docker installation is on the x86 machine with the IP address 192.68.41.1.
+Using Ollama, the service runs on the 192.168.41.2 Orin board. The Orin board has 275 TOPS of GPU computing power, making it more suitable for running large language models. The prerequisite for using natural language understanding capability of this project is to install the Ollama service on the Orin board at 41.2 and pull the `qwen2.5:1.5b` model, which is the model used by default in the project.
 
-## 2. Offline Large Language Model
-The llm service we used is Ollama, and the service runs on the Jetson AGX Orin with the IP address 192.168.41.2. The Jetson AGX Orin offering up to 275 TOPS of AI performance with power configurable between 15W and 60W, making it more suitable for running large language models. Therefore, the prerequisite for using the natural language understanding in this project is that Ollama service must be installed on the Jetson AGX Orin with IP address 41.2, and the qwen2.5:1.5b model must be pulled. This model is the default model used in the project. If you you want to use another model, you may need to change the code of this project accordingly.
+The installation steps for Ollama can be found in the `/res/ollama/install_ollama.sh` script in the project root directory, which also has comments on how to download the Ollama installation package and detailed installation steps. Please note that Ollama installation is done on the Orin board at 41.2.
 
-The installation steps for Ollama can be found in the /res/ollama/install.sh script in the project root directory. The script also includes comments on how to download the Ollama installation package and detailed installation steps. Please note that Ollama installation is done on the Jetson AGX Orin with the IP address 41.2.
+## III. Offline TTS Capability
 
+Using piper-tts. Its PyPI homepage is: https://pypi.org/project/piper-tts/
 
-## 3. Offline TTS Capability
+Python API usage is documented on GitHub: https://github.com/OHF-Voice/piper1-gpl/blob/main/docs/API_PYTHON.md
 
-The TTS capability used is piper-tts, and its PyPI page can be found at: https://pypi.org/project/piper-tts/
+It is open-sourced under the GPL-3.0 license, and this project also uses the GPL-3.0 license.
 
-The Python API documentation for its usage is available on GitHub: https://github.com/OHF-Voice/piper1-gpl/blob/main/docs/API_PYTHON.md
+## IV. Code Description
 
-It uses the GPL-3.0 open-source license, and this project will also adopt the GPL-3.0 license.
+The overall application execution flow is:
 
-## 4. Code Explanation
+1. The `tk_audio_publisher` node on the Orin board gets the audio stream from RK3588s and publishes the complete sentence audio stream to the `audio_sentence_frames` topic;
 
-The overall flow of the application is as follows:
+2. The `tk_asr_text_publisher` node on the Orin board subscribes to the `audio_sentence_frames` topic. After receiving the raw audio stream, it sends it to the Funasr service on the x86 board via WebSocket and obtains the corresponding text after speech recognition, publishing it to the `asr_sentence` topic;
 
-1. The tk_audio_publisher node on the Jetson AGX Orin obtains the audio stream from the RK3588s and publishes the audio stream in full sentences to the audio_sentence_frames topic.
+3. The `tk_audio_process` node on the Orin board subscribes to the `asr_sentence` topic. After receiving the question text, it sends the question to the Ollama service and streams the answer. Each time an answer text is received, it calls the offline TTS library to convert it to corresponding speech, then puts the speech into the AudioPlayer's playback queue for sequential playback.
 
-2. The tk_asr_text_publisher node on the Jetson AGX Orin subscribes to the audio_sentence_frames topic. After receiving the raw audio stream, it sends the data via WebSocket to the Funasr service on the x86 machine and retrieves the transcribed text. This text is then published to the asr_sentence topic.
+## V. Development and Running
 
-3. The tk_audio_process node on the Jetson AGX Orin subscribes to the asr_sentence topic. Upon receiving the transcribed question text, it sends the question to the Ollama service and streams the response. For each response received, the offline TTS library is called to convert the text into speech. The generated speech is then placed into the AudioPlayer's playback queue and played in sequence.
+First, log in to the Orin board at 41.2:
 
-
-## 5. Development and Execution
-First, log in to the Jetson AGX Orin with the IP address 192.168.41.2.
-1. Compile：
+1. **Build:**
 ```bash
 cd tkvoice_release_0.2.26_1201_164512
 rm -rf build install log && colcon build --packages-select audio_message audio_service
 ```
 
-2. source：
+2. **Environment Setup:**
 ```bash
 source install/setup.bash
 ```
 
-3. Start the application by launching the launch file：
+3. **Start Application via Launch File:**
 ```bash
 ros2 launch audio_service asr_llm_tts_process_launch.py
 ```
 
-4. Chat
+4. **Conversation:**
 
-    The microphone array on the 3588s mounted on the Tienkung system has directional audio capture. It covers a cone-shaped area with a 60-degree angle in front of the microphone array. During conversations, the sound source must be within this space (i.e., the person speaking should be within this area), otherwise, the microphone array will not pick up the sound.
-
-    While Tienkung is speaking, it can be interrupted by the sound of "Tienkung Tienkung," but other sounds will not interrupt its speech.
+   The microphone array on TianGong's RK3588s has directional audio reception. It covers approximately a 60-degree cone-shaped space in front of the microphone array. When having a conversation, ensure the audio source is within this space (i.e., the speaker must be within this coverage range), otherwise the microphone array cannot pick up the sound.
+   
+   During TianGong's speech, it can be interrupted by "TianGong TianGong" (wake-up words), but other sounds will not interrupt TianGong's ongoing speech.
 
 # Installation
 
 release_dir=tkvoice_release_0.2.26_1201_164512
 
-1. First, transfer the tkvoice_release_0.2.26_1201_164512.tar from your local computer to the Orin with the IP address 192.168.41.2:
+1. Transfer `tkvoice_release_0.2.26_1201_164512.tar` from your local computer to the Orin board at 41.2:
+
 ```bash
 scp tkvoice_release_0.2.26_1201_164512.tar nvidia@192.168.41.2:/home/nvidia
 ```
 
-2. After logging into the Orin with IP address 41.2, first extract only the installation script install.sh from the tkvoice_release_0.2.26_1201_164512.tar file. The rest of the extraction process will be handled by the installation script as needed:
+The `install.sh` script in the root directory has integrated `/res/docker_funasr/install_asr.sh`, `/res/ollama/install_ollama.sh`, and .whl package installation. Execute it directly, and if everything goes smoothly, Docker, Funasr, Ollama, and Piper installation will be completed directly.
+
+2. After logging in to the Orin board at 41.2, first extract only the `install.sh` script from `tkvoice_release_0.2.26_1201_164512.tar`. Other extraction will be done by the installation script as needed:
+
 ```bash
 tar -xvf tkvoice_release_0.2.26_1201_164512.tar tkvoice_release_0.2.26_1201_164512/install.sh
-
 ```
 
-3. Navigate to the directory and execute the installation script:
+3. Enter the directory and run the installation script:
+
 ```bash
 cd tkvoice_release_0.2.26_1201_164512
 chmod +x install.sh
-# Note that when executing install.sh, you will be prompted multiple times to enter a password. Be sure to pay attention to whether the password required is for the Ubuntu user on the x86 machine or for the Nvidia user on the Orin.
-# The installation script will perform the following actions:
-# 1. Transfer the required files for docker_funasr to the x86 machine, install Docker on the x86 machine, import the image, and start the container to run the Funasr service.
-# 2. Install the Ollama service on the Jetson AGX Orin and import the qwen2.5_1.5b.tar.gz large language model.
-# 3. Install the necessary Python packages, including piper-tts, onnxruntime-gpu, httpx, and websockets.
+# Note: When executing install.sh, you will be prompted to enter passwords multiple times. 
+# Please pay attention to whether you need to enter the password for the ubuntu user on x86 
+# or the nvidia user on the Orin board.
+# This installation script will perform the following operations:
+# 1. Transfer files needed by docker_funasr to x86, install Docker on x86 board, 
+#    import image, and start container running Funasr service
+# 2. Install Ollama service on Orin board, import qwen2.5_1.5b.tar.gz large language model
+# 3. Install necessary Python packages, including piper-tts, onnxruntime-gpu, httpx, websockets
 ./install.sh
 ```
 
-4. Uninstallation
+4. **Uninstall:**
+
 ```bash
 cd ~/tkvoice_release_0.2.26_1201_164512
 chmod +x uninstall.sh
 ./uninstall.sh
-# Note that when executing uninstall.sh, you will be prompted multiple times to enter a password. Be sure to pay attention to whether the password required is for the Ubuntu user on the x86 machine or for the Nvidia user on the Jetson AGX Orin. The uninstall script will remove the Ollama service on the Jetson AGX Orin, as well as the Funasr container and image, and Docker service on the x86 machine.
-# Additionally, note that after executing uninstall.sh, the ~/tkvoice_release_0.2.26_1201_164512 directory will be deleted, meaning the uninstall script itself will also be removed. However, the ~/tkvoice_release_0.2.26_1201_164512.tar file will not be deleted.
+# Note: When executing uninstall.sh, you will be prompted to enter passwords multiple times. 
+# Please pay attention to whether you need to enter the password for the ubuntu user on x86 
+# or the nvidia user on the Orin board. The uninstall script will uninstall Ollama on the Orin 
+# board and Funasr container and image on x86 as well as Docker service.
+# Also note that after executing uninstall.sh, the ~/tkvoice_release_0.2.26_1201_164512 directory 
+# will be deleted, including the uninstall script itself. However, the 
+# ~/tkvoice_release_0.2.26_1201_164512.tar file will not be deleted.
 ```
 
+# Testing and Running
 
-# Startup
-First, log in to the Jetson AGX Orin with IP address 41.2, and navigate to the directory:
+First, log in to the Orin board at 41.2 and enter the directory:
+
 ```bash
 cd tkvoice_release_0.2.26_1201_164512
-
-# You can then use the following commands for management:
-# start the service
-./tkvoice.sh start
-
-# stop the service
-./tkvoice.sh stop
-
-# restart the service
-./tkvoice.sh restart
-
-# check the status
-./tkvoice.sh status
-
-# check the logs"
-tail -f /home/nvidia/tkvoice_release_0.2.26_1201_164512/tkvoice.log
-
 ```
 
-The project currently supports chatting in Chinese.
-English conversation support has not been fully tested yet.
+Then you can use the following commands for management:
 
-### ✅ Done
-- Chinese conversation support
+```bash
+# Start service
+./tkvoice.sh start
 
-### 🚧 To Do
-- Full validation of English conversation
+# Stop service
+./tkvoice.sh stop
+
+# Restart service
+./tkvoice.sh restart
+
+# Check status
+./tkvoice.sh status
+
+# View logs
+tail -f /home/nvidia/tkvoice_release_0.2.26_1201_164512/tkvoice.log
+```
