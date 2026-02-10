@@ -29,7 +29,7 @@ LLM_MODEL=qwen-flash
 # All LLM service providers that are compatible with the OpenAI SDK will provide the three parameters mentioned above.
 # The LLM_KEY may also be referred to as an API Key (for example, on Alibaba Cloud’s Bailian platform). The exact naming may vary depending on the service provider.
 # The LLM_ENDPOINT may also be referred to as the Base URL (for example, on Alibaba Cloud’s Bailian platform). It specifies the endpoint or node of the LLM service to be used. For instance, on the Alibaba Cloud Bailian platform, two nodes are available:
-#   1. Beijing node (for users in China): https://github.com/UBTEDU-OPEN/tkvoice
+#   1. Beijing node (for users in China): https://dashscope.aliyuncs.com/compatible-mode/v1
 #   2. ingapore node (for users outside China): https://dashscope-intl.aliyuncs.com/compatible-mode/v1
 # Other providers such as Microsoft, Amazon, or OpenAI typically offer globally distributed nodes for selection.
 

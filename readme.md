@@ -22,7 +22,7 @@ LLM_ENDPOINT=https://dashscope.aliyuncs.com/compatible-mode/v1
 LLM_MODEL=qwen-flash
 # 所有兼容 openai SDK 的 LLM 服务提供商都会提供上述3个参数
 # LLM_KEY 也有可能叫 API Key （例如阿里云百炼平台），不同的服务商的叫法可能不一样。
-# LLM_ENDPOINT 也有可能叫 Base URL（例如阿里云百炼平台），也就是该 LLM 服务要使用的节点，以目前阿里云百炼平台为例，提供两个节点，中国地区可选用北京节点: https://github.com/UBTEDU-OPEN/tkvoice, 中国地区以外可选用新加坡节点: https://dashscope-intl.aliyuncs.com/compatible-mode/v1, 其他例如微软，亚马逊或者openai等，应该有全球节点可供选择。
+# LLM_ENDPOINT 也有可能叫 Base URL（例如阿里云百炼平台），也就是该 LLM 服务要使用的节点，以目前阿里云百炼平台为例，提供两个节点，中国地区可选用北京节点: https://dashscope.aliyuncs.com/compatible-mode/v1, 中国地区以外可选用新加坡节点: https://dashscope-intl.aliyuncs.com/compatible-mode/v1, 其他例如微软，亚马逊或者openai等，应该有全球节点可供选择。
 # LLM_MODEL 也就是要选择的模型名称，以阿里云百炼平台为例，可选用的有 qwen3-max, qwen-plus, qwen-flash 等，参考: https://help.aliyun.com/zh/model-studio/models 。对于微软，亚马逊或者openai等，应该也有其他的模型可选。
 # 若考虑使用微软 LLM ，参考: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/supported-languages?tabs=dotnet-secure%2Csecure%2Cpython-entra&pivots=programming-language-python
 
