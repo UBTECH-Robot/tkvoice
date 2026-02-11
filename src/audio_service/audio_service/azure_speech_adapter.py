@@ -1,3 +1,4 @@
+from datetime import datetime
 import azure.cognitiveservices.speech as speechsdk
 # pip install azure-cognitiveservices-speech
 import threading
@@ -5,9 +6,19 @@ import time
 import wave
 from typing import Optional
 import os
+import sys
 from pydub import AudioSegment
 import io
+
+# 支持直接运行脚本：将父目录添加到sys.path以找到audio_service包
+script_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(script_dir)
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
+
 from audio_service.log_config import setup_logger
+from audio_service.utils import AudioPlayer
+
 logging = setup_logger(__name__)
 
 def _ensure_pcm16k(audio_bytes):
@@ -72,6 +83,9 @@ class AzureSpeechAdapter:
         self.synthesizer = speechsdk.SpeechSynthesizer(speech_config=self.speech_config, audio_config=None)
         self._initialized = True
 
+        self.saved_audio_dir = "saved_audio"
+        os.makedirs(self.saved_audio_dir, exist_ok=True)
+
     def to_text(self, audio_bytes: bytes) -> str:
         """
         执行语音识别。输入 PCM bytes，返回识别文本。
@@ -133,6 +147,7 @@ class AzureSpeechAdapter:
             audio_data = result.audio_data  # bytes
             wav_header_size = 44
             pcm_data = audio_data[wav_header_size:]
+            # self.save_pcm_file(pcm_data)
             return pcm_data
         elif result.reason == speechsdk.ResultReason.Canceled:
             cancellation_details = result.cancellation_details
@@ -140,3 +155,81 @@ class AzureSpeechAdapter:
             if cancellation_details.reason == speechsdk.CancellationReason.Error:
                 logging.info("Error details: {}".format(cancellation_details.error_details))
             return b""
+
+    def get_new_name(self):
+        timestamp = datetime.now().strftime('%H%M%S%f')[:-3]  # 时分秒+毫秒（保留3位）
+        filename = os.path.join(self.saved_audio_dir, f"audio_{timestamp}")
+        self.pcm_file = f"{filename}.pcm"
+
+    def save_pcm_file(self, audio_data):
+        if not audio_data:
+            logging.info("no audio data to save")
+            return        
+        
+        self.get_new_name()
+        try:
+            with open(self.pcm_file, 'ab') as pcm_file:
+                pcm_file.write(audio_data)
+            # logging.info(f"saved PCM file: {self.pcm_file}")
+        except Exception as e:
+            logging.info(f"failed to save {self.pcm_file}: {e}")
+
+
+if __name__ == "__main__":
+    from dotenv import load_dotenv
+    
+    print("=== Azure Speech TTS Demo ===")
+    
+    # Load the .env.example file from the project root directory
+    project_root = os.path.abspath(os.path.join(script_dir, "..", "..", ".."))
+    env_file = os.path.join(project_root, ".env")
+    
+    if os.path.exists(env_file):
+        load_dotenv(env_file)
+        print(f"✓ env var loaded: {env_file}")
+    else:
+        print(f"⚠ env file not found: {env_file}")
+        print("Please ensure environment variables are set: SPEECH_KEY, ENDPOINT")
+    
+    print("Press Ctrl+C to exit\n")
+    
+    try:
+        # Initialize Azure Speech Adapter
+        adapter = AzureSpeechAdapter()
+        print(f"Initialization successful! Language: {adapter.speech_config.speech_recognition_language}")
+        print(f"Voice: {adapter.speech_config.speech_synthesis_voice_name}\n")
+        
+        audio_player = AudioPlayer()
+
+        while True:
+            try:
+                # Prompt user input
+                text = input("Please enter the text to synthesize: ").strip()
+                
+                if not text:
+                    print("Input is empty, please try again\n")
+                    continue
+                
+                # Call TTS to synthesize speech
+                print(f"Synthesizing: {text}")
+                pcm_data = adapter.tts(text)
+                
+                if pcm_data:
+                    audio_player.play(pcm_data)
+                    print(f"✓ Synthesis successful, generated {len(pcm_data)} bytes of PCM data")
+                else:
+                    print("✗ Synthesis failed\n")
+                    
+            except EOFError:
+                # Handle end of input stream (e.g., pipe input)
+                break
+                
+    except KeyboardInterrupt:
+        print("\n\nProgram exited")
+    except Exception as e:
+        print(f"\nError: {e}")
+        import traceback
+        traceback.print_exc()
+
+
+# python azure_speech_adapter.py
