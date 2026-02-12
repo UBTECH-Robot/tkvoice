@@ -189,7 +189,6 @@ class AzureSpeechAdapter:
         Args:
             wav_data: Complete WAV format data (with header). If None, uses the last synthesized WAV data.
         """
-        # Use provided wav_data or fall back to last synthesized WAV data
         data_to_save = wav_data
         
         if not data_to_save:
