@@ -127,10 +127,10 @@ class AudioProcess(Node):
                     if not answer_text_str or not answer_text_str.strip():
                         continue
                     # self.get_logger().debug(f'[{threading.current_thread().name}] 从队列拿出回答文本：{answer_text_str}')
-                    audio_bytes = self.tts_service.tts(answer_text_str)
+                    pcm_bytes, wav_bytes = self.tts_service.tts(answer_text_str)
                     if self.audio_player.get_audioid() != process_question:
                         continue
-                    self.audio_player.play(audio_bytes)
+                    self.audio_player.play(pcm_bytes)
                     self.get_logger().info(f'[{threading.current_thread().name}] [{answer_text_str}] 进入播放队列-{datetime.now().strftime("%H:%M:%S")}')
 
                 except Exception as e:
