@@ -18,7 +18,7 @@ setup(
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='ubuntu',
-    maintainer_email='kai.yang@x-humanoid.com',
+    maintainer_email='han.li@ubtrobot.com',
     description='TODO: Package description',
     license='TODO: License declaration',
     entry_points={
@@ -26,6 +26,7 @@ setup(
             'tk_audio_publisher = audio_service.tk_audio_publisher:main',
             'tk_audio_process = audio_service.tk_audio_process:main',
             'tk_asr_text_publisher = audio_service.tk_asr_text_publisher:main',
+            'microphone_audio_publisher = audio_service.microphone_audio_publisher:main',
         ],
     },
 )

@@ -25,7 +25,20 @@ def wait_for_audio_ready(max_wait=5):
     logging.info("警告：音频设备可能未准备就绪，继续执行...")
 
 class AudioPlayer:
-    def __init__(self):
+    def __init__(self, 
+                 sample_rate: int = 16000,
+                 channels: int = 1,
+                 sample_width: int = 2,
+                 frames_per_buffer: int = 1024):
+        """
+        Initialize AudioPlayer with configurable PCM audio format parameters.
+        
+        Args:
+            sample_rate: Audio sample rate in Hz (default: 16000)
+            channels: Number of audio channels, 1=mono, 2=stereo (default: 1)
+            sample_width: Sample width in bytes, 1=8bit, 2=16bit, 4=32bit (default: 2)
+            frames_per_buffer: Buffer size in frames (default: 1024)
+        """
         wait_for_audio_ready()
         self.audio = pyaudio.PyAudio()
         self.device_info = self.audio.get_default_output_device_info()
@@ -34,16 +47,24 @@ class AudioPlayer:
         self.audioid = ""
         self.audio_queues_map = {}
 
+        # PCM audio format parameters
+        self.sample_rate = sample_rate
+        self.channels = channels
+        self.sample_width = sample_width
+        self.frames_per_buffer = frames_per_buffer
+        
+        # Map sample width to PyAudio format
+        self.format = self._get_pyaudio_format(sample_width)
+
         self.stream_lock = threading.Lock()
         self.playing_stream = self.open_stream()
-        self.chunk_size = 1024
 
         self.stop_event = threading.Event()
         self.is_speaking_event = threading.Event()
 
         self.playing_thread = threading.Thread(target=self.keep_playing_audio, daemon=True)
         self.playing_thread.start()
-        logging.info(f"音频播放线程已启用，音频数据将自动按顺序播放")
+        logging.info(f"音频播放线程已启用 - 采样率:{self.sample_rate}Hz, 声道:{self.channels}, 位深:{self.sample_width*8}bit")
 
     def is_speaking(self) -> bool:
         return self.is_speaking_event.is_set()
@@ -57,8 +78,30 @@ class AudioPlayer:
     def get_audioid(self) -> str:
         with self.audioid_lock:
             return self.audioid
+    
+    def _get_pyaudio_format(self, sample_width: int):
+        """
+        Convert sample width (in bytes) to PyAudio format.
+        
+        Args:
+            sample_width: Sample width in bytes (1, 2, 3, or 4)
+            
+        Returns:
+            PyAudio format constant
+        """
+        format_map = {
+            1: pyaudio.paInt8,    # 8-bit
+            2: pyaudio.paInt16,   # 16-bit
+            3: pyaudio.paInt24,   # 24-bit
+            4: pyaudio.paInt32,   # 32-bit
+        }
+        if sample_width not in format_map:
+            logging.warning(f"Unsupported sample width {sample_width}, using 16-bit default")
+            return pyaudio.paInt16
+        return format_map[sample_width]
         
     def open_stream(self):
+        """Open audio output stream with configured PCM format parameters"""
         with self.stream_lock:
             last_exc = None
             for _ in range(3):
@@ -66,14 +109,12 @@ class AudioPlayer:
                     device_index = self.device_info['index']
                     logging.info(f'使用的音频输出设备索引: {device_index}, 设备名称: {self.device_info["name"]}')
                     stream = self.audio.open(
-                        # format=pyaudio.paFloat32,
-                        # rate=22050,
-                        format=pyaudio.paInt16,  # 16bit整数
-                        rate=16000,             # 16kHz采样率
-                        channels=1,
+                        format=self.format,
+                        rate=self.sample_rate,
+                        channels=self.channels,
                         output=True,
                         output_device_index=device_index,
-                        frames_per_buffer=1024
+                        frames_per_buffer=self.frames_per_buffer
                     )
                     return stream
                 except OSError as e:

@@ -74,13 +74,13 @@ class LLMClient:
                         content = chunk.choices[0].delta.content or ""
                         queue.put(content)
                     elif chunk.usage:
-                        logging.info(f"总计 Tokens: {chunk.usage.total_tokens}")
+                        logging.debug(f"[子进程] 总计 Tokens: {chunk.usage.total_tokens}")
 
         except Exception as e:
             logging.info(f'[子进程] 出错: {e}', exc_info=True)
         finally:
             queue.put(None)  # 表示结束
-            logging.info("[子进程] 结束。放入 None 标志流式输出结束。")
+            logging.debug("[子进程] 数据发送完成，等待主进程处理。")
 
     def stream_sentence(self, user_input):
         """在子进程发起请求并通过Queue流式返回结果（主进程负责拼句）"""
@@ -97,7 +97,7 @@ class LLMClient:
         self.process = p
         self.queue = q
         p.start()
-        logging.info(f'[主进程] 启动子进程 PID={p.pid}，[{user_input}] 的流式输出开始')
+        logging.info(f'[NLP] Started subprocess PID={p.pid}, streaming output for [{user_input}]')
 
         assistant_response = ""
         buffer = ""
@@ -106,7 +106,7 @@ class LLMClient:
             try:
                 chunk = q.get(timeout=0.5)
                 if chunk is None:
-                    logging.info("[主进程] 队列里拿出NONE, 流式输出正常完成。")
+                    logging.debug("[NLP] Received None from queue, stream complete")
                     break  # 子进程结束
                 assistant_response += chunk
                 buffer += chunk
@@ -117,8 +117,7 @@ class LLMClient:
                         [buffer.find(punc) for punc in self.sentence_endings if punc in buffer]
                     )
                     sentence = buffer[: idx + 1].strip()
-                    logging.info(sentence)
-
+                    logging.info(f"[NLP] Stream output sentence: {sentence}")
                     yield sentence
                     buffer = buffer[idx + 1:]
 
@@ -128,26 +127,26 @@ class LLMClient:
                         if punc in buffer:
                             idx = buffer.find(punc)
                             sentence = buffer[: idx + 1].strip()
-                            
-                            logging.info(sentence)
-
+                            logging.info(f"[NLP] Stream output sentence (soft split): {sentence}")
                             yield sentence
                             buffer = buffer[idx + 1:]
                             break
 
             except multiprocessing.queues.Empty:
                 if not p.is_alive():
-                    logging.info("[主进程] 子进程已 not alive, 流式输出将结束")
+                    logging.debug("[NLP] Subprocess ended, stream output complete")
                     break
                 continue
             except KeyboardInterrupt:
-                logging.info("[主进程] 捕获 KeyboardInterrupt, 准备终止子进程。")
+                logging.info("[NLP] Caught KeyboardInterrupt, terminating subprocess")
                 self.set_interrupted(True)
                 break
 
         # 若还有残留的文本
         if buffer.strip():
-            yield buffer.strip()
+            remaining = buffer.strip()
+            logging.info(f"[NLP] Stream output remaining: {remaining}")
+            yield remaining
 
         # 记录历史
         self.add_message("user", user_input)
@@ -157,7 +156,7 @@ class LLMClient:
         if p.is_alive():
             p.join(timeout=1)
         if p.exitcode is not None:
-            logging.info(f'[主进程] [{user_input}] 已退出，exitcode={p.exitcode}.')
+            logging.info(f'[NLP] Question [{user_input}] completed, exitcode={p.exitcode}.')
 
     def set_interrupted(self, interrupted=True):
         """终止子进程"""

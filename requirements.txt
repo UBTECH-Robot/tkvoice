@@ -1,0 +1,7 @@
+httpx
+azure-cognitiveservices-speech
+pydub
+python-dotenv
+pyaudio
+webrtcvad
+openai

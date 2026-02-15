@@ -15,3 +15,4 @@ audiolocal_release_*
 github_first_push.sh
 *.error
 .env
+.vscode

@@ -20,10 +20,11 @@ def check_env_file_exists(env_path):
         raise FileNotFoundError(error_msg)
     print(f"✅ Environment config file found: {env_path}")
 
+
 def is_ros2_node_running(node_name):
     """
     Check if ROS2 node is running.
-    node_name can be 'tk_audio_publisher', will match /tk_audio_publisher or /ns/tk_audio_publisher
+    node_name can be 'microphone_audio_publisher', will match /microphone_audio_publisher or /ns/microphone_audio_publisher
     """
     try:
         output = subprocess.check_output(['ros2', 'node', 'list'], text=True)
@@ -73,9 +74,9 @@ def generate_launch_description():
 
     launch_description = []
 
-    if is_ros2_node_running("tk_audio_publisher"):
-        kill_ros2_node("tk_audio_publisher")    
-        print("audio_publisher node has been force stopped, will restart it")
+    if is_ros2_node_running("microphone_audio_publisher"):
+        kill_ros2_node("microphone_audio_publisher")    
+        print("microphone_audio_publisher node has been force stopped, will restart it")
     if is_ros2_node_running("tk_asr_text_publisher"):
         kill_ros2_node("tk_asr_text_publisher")    
         print("tk_asr_text_publisher node has been force stopped, will restart it")
@@ -85,14 +86,14 @@ def generate_launch_description():
 
     audio_publisher_node = Node(
         package='audio_service',
-        executable='tk_audio_publisher',
-        name='tk_audio_publisher',
+        executable='microphone_audio_publisher',
+        name='microphone_audio_publisher',
         output='screen',
     )
     launch_description.append(audio_publisher_node)
     # Second node: text audio publisher (depends on previous, so use Timer to delay startup)
     asr_sentence_publisher_node = TimerAction(
-        period=2.0,  # Delay 2 seconds to ensure tk_audio_publisher starts first
+        period=2.0,  # Delay 2 seconds to ensure microphone_audio_publisher starts first
         actions=[
             Node(
                 package='audio_service',
@@ -121,4 +122,4 @@ def generate_launch_description():
 
 # rm -rf build install log && colcon build --packages-select audio_message audio_service
 # source install/setup.bash
-# ros2 launch audio_service asr_llm_tts_process_launch.py
+# ros2 launch audio_service asr_llm_tts_microphone_launch.py
