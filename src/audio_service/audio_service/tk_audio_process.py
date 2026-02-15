@@ -58,30 +58,6 @@ class AudioProcess(Node):
 
         self.get_logger().info("AudioProcess node started")
     
-    def ensure_audio_player(self, wav_params):
-        if not wav_params:
-            self.audio_player = AudioPlayer()
-            return
-        if self.current_audio_params is None or self.current_audio_params != wav_params:
-            if self.current_audio_params is None:
-                print("Initializing AudioPlayer with audio format from synthesized data...")
-            else:
-                print(f"⚠ Audio format changed! Reinitializing AudioPlayer...")
-                print(f"  Previous: {self.current_audio_params['sample_rate']}Hz, "
-                        f"{self.current_audio_params['channels']}ch, {self.current_audio_params['sample_width']*8}bit")
-                print(f"  Current:  {wav_params['sample_rate']}Hz, "
-                        f"{wav_params['channels']}ch, {wav_params['sample_width']*8}bit")
-                # Close old player if exists
-                if self.audio_player:
-                    self.audio_player.close()
-            
-            # Create new AudioPlayer with updated parameters
-            self.audio_player = AudioPlayer(**wav_params)
-            self.current_audio_params = wav_params.copy()
-            print(f"AudioPlayer initialized: {wav_params['sample_rate']}Hz, "
-                    f"{wav_params['channels']}ch, {wav_params['sample_width']*8}bit\n")
-                
-
     def on_asr_sentence(self, msg: String):
         """Handle incoming ASR text with interrupt support"""
         if not msg.data:
@@ -189,9 +165,8 @@ class AudioProcess(Node):
         """Worker thread: Convert LLM text responses to audio and play them"""
         while not self.stop_event.is_set():
             try:
-                # Thread-safe queue get operation
-                with self.answer_text_queue_lock:
-                    request_id, answer_text = self.answer_text_queue.get(timeout=0.1)
+                # Thread-safe queue get operation (get without holding lock)
+                request_id, answer_text = self.answer_text_queue.get(timeout=0.1)
                 
                 self.get_logger().debug(f'[{threading.current_thread().name}] Retrieved sentence from queue')
                 
@@ -205,10 +180,8 @@ class AudioProcess(Node):
                     
                     pcm_bytes, wav_bytes, wav_params = self.tts_service.tts(answer_text_str)
                     
-                    # self.ensure_audio_player(wav_params)
-
                     # Verify this response is still for the current request (not interrupted)
-                    if self.audio_player.get_audioid() != request_id:
+                    if not self.audio_player or self.audio_player.get_audioid() != request_id:
                         self.get_logger().debug(f'Response interrupted, discarding audio segment')
                         continue
                     
@@ -235,6 +208,14 @@ class AudioProcess(Node):
         # Signal threads to stop
         self.stop_event.set()
         
+        # Interrupt any ongoing LLM operations
+        try:
+            if self.llm_client:
+                self.llm_client.set_interrupted(True)
+                self.llm_client.close()
+        except Exception as e:
+            self.get_logger().error(f"Error closing LLM client: {e}")
+        
         # Wait for threads to finish with timeout to avoid hanging
         if self.question_to_answer_thread and self.question_to_answer_thread.is_alive():
             self.get_logger().info("Waiting for NLP thread to finish...")
@@ -250,7 +231,8 @@ class AudioProcess(Node):
         
         # Cleanup audio player
         try:
-            self.audio_player.close()
+            if self.audio_player:
+                self.audio_player.close()
         except Exception as e:
             self.get_logger().error(f"Error closing audio player: {e}")
         
