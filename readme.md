@@ -1,7 +1,7 @@
 For English, refer to [readme_en.md](./readme_en.md)
 
 # 前言
-整个项目包含ASR能力（使用的微软Azure Speech Service），大语言模型（仅支持可OpenAI SDK调用的LLM服务），TTS能力（使用的微软Azure Speech Service）。
+整个项目包含STT能力（使用的微软Azure Speech Service），大语言模型（仅支持可OpenAI SDK调用的LLM服务），TTS能力（使用的微软Azure Speech Service）。
 
 ## 一、代码说明
 
@@ -14,7 +14,7 @@ For English, refer to [readme_en.md](./readme_en.md)
 
 4. 在 LLM 流式输出回答的过程中，每接收到足够组成一个句子的字符后，就调用 azure.cognitiveservices.speech SDK 内的 SpeechSynthesizer 相关类和方法，将句子文本转为对应的语音，然后将语音放入 AudioPlayer 的播放队列，按顺序播放。
 
-5. 根目录下的 .env 文件，内容说明（这个文件很重要，配置好这个文件是整个项目中 ASR, LLM, TTS 可用的前提）：
+5. 根目录下的 .env 文件，内容说明（这个文件很重要，配置好这个文件是整个项目中 STT, LLM, TTS 可用的前提）：
     ### LLM配置项
     ```bash
     LLM_KEY=sk-xxx
@@ -39,7 +39,7 @@ For English, refer to [readme_en.md](./readme_en.md)
     STT_ENDPOINT=https://eastasia.stt.speech.microsoft.com
     TTS_ENDPOINT=https://eastasia.tts.speech.microsoft.com
     ```
-    ASR 和 TTS 目前是对接的 Azure 的语音服务，需要如下参数：
+    STT 和 TTS 目前是对接的 Azure 的语音服务，需要如下参数：
     - SPEECH_KEY 也就是调用服务所需要的 key
     - STT_ENDPOINT 语音转文本节点
     - TTS_ENDPOINT 文本转语音节点
@@ -65,8 +65,18 @@ For English, refer to [readme_en.md](./readme_en.md)
     ### 合成语言
     ```bash
     VOICE_NAME=sl-SI-RokNeural
+    # VOICE_NAME=it-IT-AlessioMultilingualNeural
+    # VOICE_NAME=ko-KR-HyunsuMultilingualNeural
+    # VOICE_NAME=ja-JP-MasaruMultilingualNeural
+    # VOICE_NAME=zh-CN-Xiaoxiao:DragonHDFlashLatestNeural
+    # VOICE_NAME=en-US-AvaMultilingualNeural
+    # VOICE_NAME=de-DE-SeraphinaMultilingualNeural
+    # VOICE_NAME=es-ES-ArabellaMultilingualNeural
+    # VOICE_NAME=fr-FR-LucienMultilingualNeural
     ```
-    该参数为语音合成的语种，可选值参考[【官方文档】](https://learn.microsoft.com/zh-cn/azure/ai-services/speech-service/language-support?tabs=tts#multilingual-voices)，Azure的文档并不完全正确，并不是这里列出的所有音色都被支持。
+    该参数为语音合成的语种，完整可选值参考[【官方文档】](https://learn.microsoft.com/zh-cn/azure/ai-services/speech-service/language-support?tabs=tts#multilingual-voices)。
+
+    注：Azure的文档并不完全正确，并不是官方文档里列出的所有音色都被支持）
 
     ### 系统提示词
     ```bash

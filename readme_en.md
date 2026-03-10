@@ -1,7 +1,7 @@
 # Preface
 The entire project includes the following capabilities:
 
-ASR (Automatic Speech Recognition) — powered by Microsoft Azure Speech Service.
+STT (Speech to text) — powered by Microsoft Azure Speech Service.
 
 Large Language Model (LLM) — supports only LLM services that can be accessed through the OpenAI SDK.
 
@@ -20,7 +20,7 @@ The overall workflow of the application is as follows:
 
 4. During the streaming output of the LLM’s response, whenever enough characters are received to form a complete sentence, the SpeechSynthesizer classes and methods from the azure.cognitiveservices.speech SDK are invoked to convert that sentence into speech. The generated audio is then added to the AudioPlayer playback queue and played sequentially.
 
-5. The .env file located in the project’s root directory contains critical configuration parameters. Properly setting up this file is essential for enabling the ASR, LLM, and TTS functionalities throughout the entire project. You may create this file if the file does not exist.
+5. The .env file located in the project’s root directory contains critical configuration parameters. Properly setting up this file is essential for enabling the STT, LLM, and TTS functionalities throughout the entire project. You may create this file if the file does not exist.
     ### LLM Configuration
     ```bash
     LLM_KEY=sk-xxx
@@ -45,20 +45,20 @@ The overall workflow of the application is as follows:
     STT_ENDPOINT=https://eastasia.stt.speech.microsoft.com
     TTS_ENDPOINT=https://eastasia.tts.speech.microsoft.com
     ```
-    ASR and TTS currently integrate with Azure Speech Services and require the following parameters:
+    STT and TTS currently integrate with Azure Speech Services and require the following parameters:
     - `SPEECH_KEY`: The key required to call the service
     - `STT_ENDPOINT`: Speech-to-text endpoint
     - `TTS_ENDPOINT`: Text-to-speech endpoint
 
-    For detailed steps, refer to the [Microsoft Speech Service Official Documentation](https://learn.microsoft.com/zh-cn/azure/ai-services/speech-service/get-started-speech-to-text?pivots=programming-language-python)
-    ![alt text](image-1.png)
+    For detailed steps, refer to the [Microsoft Speech Service Official Documentation](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/get-started-speech-to-text?pivots=programming-language-python)
+    ![alt text](image-4.png)
 
     After creating the resource, you can view the required information on the [Azure Portal](https://portal.azure.com/#home):
     ![alt text](image-2.png)
 
     The "Key" is your `SPEECH_KEY` — use the copy button on the right.
 
-    Under "AI Services" you can find the STT and TTS endpoints. Note that the first part of the domain (e.g., `eastus`) is the region identifier. For details, refer to the [Official Documentation](https://learn.microsoft.com/zh-cn/azure/ai-services/speech-service/regions?tabs=geographies#regions).
+    Under "AI Services" you can find the STT and TTS endpoints. Note that the first part of the domain (e.g., `eastus`) is the region identifier. For details, refer to the [Official Documentation](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/regions?tabs=geographies#regions).
 
 
     ### Recognition Language
@@ -66,13 +66,23 @@ The overall workflow of the application is as follows:
     LANGUAGE=zh-CN
     ```
 
-    This parameter specifies the language for Microsoft ASR recognition. For available values, refer to the [Official Documentation](https://learn.microsoft.com/zh-cn/azure/ai-services/speech-service/language-support?tabs=stt).
+    This parameter specifies the language for Microsoft STT recognition. For available values, refer to the [Official Documentation](https://learn.microsoft.com/zh-cn/azure/ai-services/speech-service/language-support?tabs=stt).
 
     ### Synthesis Voice
     ```bash
     VOICE_NAME=sl-SI-RokNeural
+    # VOICE_NAME=it-IT-AlessioMultilingualNeural
+    # VOICE_NAME=ko-KR-HyunsuMultilingualNeural
+    # VOICE_NAME=ja-JP-MasaruMultilingualNeural
+    # VOICE_NAME=zh-CN-Xiaoxiao:DragonHDFlashLatestNeural
+    # VOICE_NAME=en-US-AvaMultilingualNeural
+    # VOICE_NAME=de-DE-SeraphinaMultilingualNeural
+    # VOICE_NAME=es-ES-ArabellaMultilingualNeural
+    # VOICE_NAME=fr-FR-LucienMultilingualNeural
     ```
-    This parameter specifies the voice for speech synthesis. For available values, refer to the [Official Documentation](https://learn.microsoft.com/zh-cn/azure/ai-services/speech-service/language-support?tabs=tts).
+    This parameter specifies the voice for speech synthesis. For all available values, refer to the [Official Documentation](https://learn.microsoft.com/zh-cn/azure/ai-services/speech-service/language-support?tabs=tts#multilingual-voices). 
+    
+    Note: Azure’s documentation is not entirely accurate; not all the voices listed are actually supported.
 
     ### System Prompt
     ```bash
@@ -84,7 +94,7 @@ The overall workflow of the application is as follows:
     ```bash
     INTERRUPT_WORDS=""
     ```
-    Interrupt words work as follows: while TienKung is playing audio, it also continues listening. When the received audio is transcribed by ASR and the text is detected to contain an interrupt word, playback stops and the system enters listening mode to await the user's question. If no interrupt word is detected, the utterance is ignored. Multiple interrupt words can be configured, separated by commas.
+    Interrupt words work as follows: while TienKung is playing audio, it also continues listening. When the received audio is transcribed by STT and the text is detected to contain an interrupt word, playback stops and the system enters listening mode to await the user's question. If no interrupt word is detected, the utterance is ignored. Multiple interrupt words can be configured, separated by commas.
 
 ## 2. Develop
 First, log in to the Orin board with IP 192.168.41.2.
