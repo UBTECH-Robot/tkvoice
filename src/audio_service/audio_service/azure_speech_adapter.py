@@ -63,45 +63,44 @@ class AzureSpeechAdapter:
     支持多次调用 asr()，适用于持续识别循环场景。
     """
 
-    def __init__(self, speech_key: Optional[str] = None, region: Optional[str] = None, endpoint: Optional[str] = None):
+    def __init__(self, speech_key: Optional[str] = None, endpoint: Optional[str] = None):
         SPEECH_KEY = os.environ.get("SPEECH_KEY")
         ENDPOINT = os.environ.get("ENDPOINT")
+        STT_ENDPOINT = os.environ.get("STT_ENDPOINT") if os.environ.get("STT_ENDPOINT") else ENDPOINT
+        TTS_ENDPOINT = os.environ.get("TTS_ENDPOINT") if os.environ.get("TTS_ENDPOINT") else ENDPOINT
         LANGUAGE = os.environ.get("LANGUAGE", "en-US")
         VOICE_NAME = os.environ.get("VOICE_NAME", "en-US-AndrewMultilingualNeural")
         if hasattr(self, "_initialized") and self._initialized:
             return
         
         speech_key = SPEECH_KEY
-        endpoint = ENDPOINT
-        if not (speech_key and (region or endpoint)):
-            raise ValueError("必须提供 speech_key 和 region 或 endpoint")
+        if not (speech_key and STT_ENDPOINT and TTS_ENDPOINT):
+            raise ValueError("必须提供 SPEECH_KEY 和 STT_ENDPOINT 和 TTS_ENDPOINT")
 
-        if endpoint:
-            self.speech_config = speechsdk.SpeechConfig(subscription=speech_key, endpoint=endpoint)
-            logging.info(f"endpoint loaded: {endpoint}")
-            logging.info(f"LANGUAGE loaded: {LANGUAGE}")
-            logging.info(f"VOICE_NAME loaded: {VOICE_NAME}")
-
-        else:
-            self.speech_config = speechsdk.SpeechConfig(subscription=speech_key, region=region)
+        self.stt_speech_config = speechsdk.SpeechConfig(subscription=speech_key, endpoint=STT_ENDPOINT)
+        self.tts_speech_config = speechsdk.SpeechConfig(subscription=speech_key, endpoint=TTS_ENDPOINT)
+        logging.info(f"STT_ENDPOINT loaded: {STT_ENDPOINT}")
+        logging.info(f"TTS_ENDPOINT loaded: {TTS_ENDPOINT}")
+        logging.info(f"LANGUAGE loaded: {LANGUAGE}")
+        logging.info(f"VOICE_NAME loaded: {VOICE_NAME}")
 
         # self.speech_config.speech_recognition_language = "en-US"
         # self.speech_config.speech_synthesis_voice_name = "en-US-AndrewMultilingualNeural"
 
-        self.speech_config.speech_recognition_language = LANGUAGE #"zh-CN"
-        self.speech_config.speech_synthesis_voice_name = VOICE_NAME #"zh-CN-YunxiNeural"
+        self.stt_speech_config.speech_recognition_language = LANGUAGE #"zh-CN"
+
+        self.tts_speech_config.speech_synthesis_voice_name = VOICE_NAME #"zh-CN-YunxiNeural"
 
         # self.speech_config.speech_recognition_language = "sl-SI"
         # self.speech_config.speech_synthesis_voice_name = "sl-SI-RokNeural"
         # https://learn.microsoft.com/zh-cn/azure/ai-services/speech-service/language-support?tabs=tts
 
-        self.speech_config.set_speech_synthesis_output_format(
+        self.tts_speech_config.set_speech_synthesis_output_format(
             speechsdk.SpeechSynthesisOutputFormat.Riff16Khz16BitMonoPcm
         )
 
         # 控制识别流程的锁（防止并发）
         self._asr_lock = threading.Lock()
-        self.synthesizer = speechsdk.SpeechSynthesizer(speech_config=self.speech_config, audio_config=None)
         self._initialized = True
 
         self.saved_audio_dir = "saved_audio"
@@ -133,7 +132,7 @@ class AzureSpeechAdapter:
             stream = speechsdk.audio.PushAudioInputStream()
             audio_config = speechsdk.audio.AudioConfig(stream=stream)
             recognizer = speechsdk.SpeechRecognizer(
-                speech_config=self.speech_config, audio_config=audio_config
+                speech_config=self.stt_speech_config, audio_config=audio_config
             )
 
             # 用于阻塞等待识别完成
@@ -184,12 +183,13 @@ class AzureSpeechAdapter:
             - pcm_data: Raw PCM audio bytes (16kHz 16bit mono format) for playback
             - wav_data: Complete WAV format data (with header) for file storage
         """
-        if not hasattr(self, 'synthesizer'):
+        if not hasattr(self, 'tts_speech_config'):
             logging.info("Speech synthesis not initialized yet.")
             return b"", b"", None
         
         logging.info(f'[{threading.current_thread().name}] [{text}] Starting TTS synthesis - {datetime.now().strftime("%H:%M:%S")}')
-        result = self.synthesizer.speak_text_async(text).get()
+        synthesizer = speechsdk.SpeechSynthesizer(speech_config=self.tts_speech_config, audio_config=None)
+        result = synthesizer.speak_text_async(text).get()
 
         if result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
             # audio_data is complete WAV format data (including WAV header)

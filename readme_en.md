@@ -21,39 +21,70 @@ The overall workflow of the application is as follows:
 4. During the streaming output of the LLM’s response, whenever enough characters are received to form a complete sentence, the SpeechSynthesizer classes and methods from the azure.cognitiveservices.speech SDK are invoked to convert that sentence into speech. The generated audio is then added to the AudioPlayer playback queue and played sequentially.
 
 5. The .env file located in the project’s root directory contains critical configuration parameters. Properly setting up this file is essential for enabling the ASR, LLM, and TTS functionalities throughout the entire project. You may create this file if the file does not exist.
+    ### LLM Configuration
+    ```bash
+    LLM_KEY=sk-xxx
+    LLM_ENDPOINT=https://dashscope.aliyuncs.com/compatible-mode/v1
+    LLM_MODEL=qwen-flash
+    ```
 
-```bash
-LLM_KEY=sk-xxx
-LLM_ENDPOINT=https://dashscope.aliyuncs.com/compatible-mode/v1
-LLM_MODEL=qwen-flash
-# All LLM service providers that are compatible with the OpenAI SDK will provide the three parameters mentioned above.
-# The LLM_KEY may also be referred to as an API Key (for example, on Alibaba Cloud’s Bailian platform). The exact naming may vary depending on the service provider.
-# The LLM_ENDPOINT may also be referred to as the Base URL (for example, on Alibaba Cloud’s Bailian platform). It specifies the endpoint or node of the LLM service to be used. For instance, on the Alibaba Cloud Bailian platform, two nodes are available:
-#   1. Beijing node (for users in China): https://dashscope.aliyuncs.com/compatible-mode/v1
-#   2. ingapore node (for users outside China): https://dashscope-intl.aliyuncs.com/compatible-mode/v1
-# Other providers such as Microsoft, Amazon, or OpenAI typically offer globally distributed nodes for selection.
+    All LLM service providers compatible with the OpenAI SDK will provide the above 3 parameters:
+    - `LLM_KEY` may also be called "API Key" (e.g., on Alibaba Cloud Bailian Platform). Different providers may use different terminology.
+    - `LLM_ENDPOINT` may also be called "Base URL" (e.g., on Alibaba Cloud Bailian Platform). This is the endpoint for the LLM service you want to use.
 
-# The LLM_MODEL specifies the name of the model to be used. For example, on the Alibaba Cloud Bailian platform, available options include qwen3-max, qwen-plus, qwen-flash, and others. For details, refer to: https://help.aliyun.com/zh/model-studio/models. Similarly, providers such as Microsoft, Amazon, and OpenAI also offer various model options to choose from.
-# For Microsoft LLM, refer to: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/supported-languages?tabs=dotnet-secure%2Csecure%2Cpython-entra&pivots=programming-language-python
+      Taking Alibaba Cloud Bailian Platform as an example, you can refer to the [Bailian Platform Official Documentation](https://modelstudio.console.aliyun.com/us-east-1?tab=doc#/doc/?type=model&url=3004398) for node selection and key retrieval. As shown in the image below, you can find available nodes and the link to key management.
+      ![alt text](image-3.png)
 
-SPEECH_KEY="xxx"
-ENDPOINT=https://westeurope.api.cognitive.microsoft.com/
-# The ASR and TTS services currently integrate with Azure and require two parameters:
-# SPEECH_KEY is the key required to access (authenticate) the Azure speech services.
-# ENDPOINT refers to the service endpoint (region node). Generally, it’s best to use the geographically closest endpoint to reduce latency.
+      Other providers such as Microsoft, Amazon, or OpenAI should also have global nodes available for selection.
+    - `LLM_MODEL` is the name of the model to use. Taking Alibaba Cloud Bailian Platform as an example, available options include qwen3-max, qwen-plus, qwen-flash, etc. Refer to: https://help.aliyun.com/zh/model-studio/models. For Microsoft, Amazon, or OpenAI, there should be other models available as well—users need to explore these on their own.
+    - For Microsoft LLM options, refer to: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/supported-languages?tabs=dotnet-secure%2Csecure%2Cpython-entra&pivots=programming-language-python
 
-LANGUAGE=zh-CN
-# This parameter specifies the language for Microsoft ASR recognition. Available options can be found here: https://learn.microsoft.com/zh-cn/azure/ai-services/speech-service/language-support?tabs=stt
+    ### Azure Speech Service Key and Endpoints
+    ```bash
+    SPEECH_KEY="xxx"
+    STT_ENDPOINT=https://eastasia.stt.speech.microsoft.com
+    TTS_ENDPOINT=https://eastasia.tts.speech.microsoft.com
+    ```
+    ASR and TTS currently integrate with Azure Speech Services and require the following parameters:
+    - `SPEECH_KEY`: The key required to call the service
+    - `STT_ENDPOINT`: Speech-to-text endpoint
+    - `TTS_ENDPOINT`: Text-to-speech endpoint
 
-VOICE_NAME=sl-SI-RokNeural
-# This parameter specifies the language for speech synthesis. You can refer to the supported options here: https://learn.microsoft.com/zh-cn/azure/ai-services/speech-service/language-support?tabs=tts
+    For detailed steps, refer to the [Microsoft Speech Service Official Documentation](https://learn.microsoft.com/zh-cn/azure/ai-services/speech-service/get-started-speech-to-text?pivots=programming-language-python)
+    ![alt text](image-1.png)
 
-SYS_MESSAGE="你是优必选开发的智能助手，名叫天工形者。回答简洁明了，尽量100个单词以内，用斯洛文尼亚语回答。"
-# This parameter is used within the project to set the system prompt (system message) for the LLM.
+    After creating the resource, you can view the required information on the [Azure Portal](https://portal.azure.com/#home):
+    ![alt text](image-2.png)
 
-INTERRUPT_WORDS="天工,天空,天宫"
-# "Interrupt words" mean that while the system is playing audio, it is still listening. If the ASR detects any of the configured interrupt words in the recognized text, the playback will stop immediately and the system will switch back to listening mode, waiting for the user’s question. If none of the interrupt words are detected, the current utterance will be ignored. Multiple interrupt words can be configured, separated by commas.
-```
+    The "Key" is your `SPEECH_KEY` — use the copy button on the right.
+
+    Under "AI Services" you can find the STT and TTS endpoints. Note that the first part of the domain (e.g., `eastus`) is the region identifier. For details, refer to the [Official Documentation](https://learn.microsoft.com/zh-cn/azure/ai-services/speech-service/regions?tabs=geographies#regions).
+
+
+    ### Recognition Language
+    ```bash
+    LANGUAGE=zh-CN
+    ```
+
+    This parameter specifies the language for Microsoft ASR recognition. For available values, refer to the [Official Documentation](https://learn.microsoft.com/zh-cn/azure/ai-services/speech-service/language-support?tabs=stt).
+
+    ### Synthesis Voice
+    ```bash
+    VOICE_NAME=sl-SI-RokNeural
+    ```
+    This parameter specifies the voice for speech synthesis. For available values, refer to the [Official Documentation](https://learn.microsoft.com/zh-cn/azure/ai-services/speech-service/language-support?tabs=tts).
+
+    ### System Prompt
+    ```bash
+    SYS_MESSAGE="You are an intelligent assistant developed by UBTech, named Walker TienKung. Keep your answers concise and clear, within 100 words when possible, and respond in Slovenian."
+    ```
+    This parameter sets the system prompt used by the LLM in this project.
+
+    ### Interrupt Words
+    ```bash
+    INTERRUPT_WORDS=""
+    ```
+    Interrupt words work as follows: while TienKung is playing audio, it also continues listening. When the received audio is transcribed by ASR and the text is detected to contain an interrupt word, playback stops and the system enters listening mode to await the user's question. If no interrupt word is detected, the utterance is ignored. Multiple interrupt words can be configured, separated by commas.
 
 ## 2. Develop
 First, log in to the Orin board with IP 192.168.41.2.
