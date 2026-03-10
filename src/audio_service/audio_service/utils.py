@@ -60,14 +60,24 @@ class AudioPlayer:
         self.playing_stream = self.open_stream()
 
         self.stop_event = threading.Event()
-        self.is_speaking_event = threading.Event()
+        self.playback_state_lock = threading.Lock()
+        self.playback_deadline = 0.0
+        self.output_latency_seconds = self._get_output_latency_seconds()
 
         self.playing_thread = threading.Thread(target=self.keep_playing_audio, daemon=True)
         self.playing_thread.start()
         logging.info(f"音频播放线程已启用 - 采样率:{self.sample_rate}Hz, 声道:{self.channels}, 位深:{self.sample_width*8}bit")
 
     def is_speaking(self) -> bool:
-        return self.is_speaking_event.is_set()
+        """Check if audio is currently playing or has pending chunks to play."""
+        # 1. Check if there's pending audio in the queue
+        current_audioid = self.get_audioid()
+        if self._has_pending_audio(current_audioid):
+            return True
+
+        # 2. Check if audio is still being played from hardware buffer
+        with self.playback_state_lock:
+            return time.monotonic() < self.playback_deadline
     
     def set_audioid(self, text: str):
         with self.audioid_lock:
@@ -99,6 +109,37 @@ class AudioPlayer:
             logging.warning(f"Unsupported sample width {sample_width}, using 16-bit default")
             return pyaudio.paInt16
         return format_map[sample_width]
+
+    def _get_output_latency_seconds(self) -> float:
+        try:
+            latency = self.playing_stream.get_output_latency()
+            if latency is None:
+                return 0.0
+            return max(0.0, float(latency))
+        except Exception:
+            return 0.0
+
+    def _has_pending_audio(self, audioid: str) -> bool:
+        """Check if there are pending audio chunks for the given audioid."""
+        if not audioid:
+            return False
+        with self.audio_queues_map_lock:
+            queue = self.audio_queues_map.get(audioid)
+            if queue is None:
+                return False
+            return not queue.empty()
+
+    def _mark_audio_playing(self, audio_data: bytes):
+        bytes_per_second = self.sample_rate * self.channels * self.sample_width
+        if bytes_per_second <= 0:
+            return
+
+        chunk_duration = len(audio_data) / bytes_per_second
+        with self.playback_state_lock:
+            # 如果当前没有在播放，从当前时间开始
+            # 如果正在播放，从上一个截止时间继续累加
+            start_time = max(time.monotonic(), self.playback_deadline)
+            self.playback_deadline = start_time + chunk_duration + self.output_latency_seconds
         
     def open_stream(self):
         """Open audio output stream with configured PCM format parameters"""
@@ -139,11 +180,11 @@ class AudioPlayer:
                 except KeyError:
                     pass
 
-        self.is_speaking_event.clear()
-
     def close(self):
         self.stop_event.set()
         self.playing_thread.join(timeout=2)
+        with self.playback_state_lock:
+            self.playback_deadline = 0.0
 
         with self.stream_lock:
             self.playing_stream.stop_stream()
@@ -190,11 +231,9 @@ class AudioPlayer:
                 if audio_data is None:
                     time.sleep(0.01)
                     break
+                self._mark_audio_playing(audio_data)
                 with self.stream_lock:
-                    self.is_speaking_event.set()
                     self.playing_stream.write(audio_data)
-                if queue and queue.empty():
-                    self.is_speaking_event.clear()
 
             except Exception as e:
                 logging.info(f"播放音频时发生错误: {e}")
