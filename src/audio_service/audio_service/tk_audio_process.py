@@ -48,19 +48,19 @@ class AudioProcess(Node):
         self.tts_service = PiperProvider()
 
         self.get_logger().info("AudioProcess 节点已启动")
-        self.wake_up_words = ["天工", "天空", "天宫"]
+        self.interrupt_words = ["天工", "天空", "天宫"]
     
     def on_asr_sentence(self, msg: String):
         if not msg.data:
             return
         # self.get_logger().info(f"收到文本: {msg.data}")
 
-        wake_up = any(word in msg.data for word in self.wake_up_words)
-        if self.audio_player.is_speaking() and not wake_up:
+        interrupt = any(word in msg.data for word in self.interrupt_words)
+        if self.audio_player.is_speaking() and not interrupt:
             self.get_logger().info(f"说话中，[{msg.data}]不包含唤醒词，忽略")
             return
-        if self.audio_player.is_speaking() and wake_up:
-            self.audio_player.set_question_text(msg.data)
+        if self.audio_player.is_speaking() and interrupt:
+            self.audio_player.set_audioid(msg.data)
             # self.ollama_client.set_question_text(msg.data)
             self.ollama_client.set_interrupted(True)
             self.audio_player.stop_other_audio_and_clear_queue()
@@ -70,7 +70,7 @@ class AudioProcess(Node):
         
         self.get_logger().info(f"收到有效提问：[{msg.data}]，放入队列等待处理")
             
-        self.audio_player.set_question_text(msg.data)
+        self.audio_player.set_audioid(msg.data)
         # self.ollama_client.set_question_text(msg.data)
         self.ollama_client.set_interrupted(True)
         try:
@@ -105,7 +105,7 @@ class AudioProcess(Node):
                             break
                         count += 1
                             
-                        if process_question != self.audio_player.get_question_text():
+                        if process_question != self.audio_player.get_audioid():
                             self.get_logger().info(f'有新问题进来，打断大模型输出回答-{datetime.now().strftime("%H:%M:%S")}')
                             with self.answer_text_queue_lock:
                                 self.answer_text_queue = Queue()
@@ -136,7 +136,7 @@ class AudioProcess(Node):
                         continue
                     # self.get_logger().debug(f'[{threading.current_thread().name}] 从队列拿出回答文本：{answer_text_str}')
                     audio_bytes = self.tts_service.tts(answer_text_str)
-                    if self.audio_player.get_question_text() != process_question:
+                    if self.audio_player.get_audioid() != process_question:
                         continue
                     self.audio_player.play(audio_bytes)
                     self.get_logger().info(f'[{threading.current_thread().name}] [{answer_text_str}] 进入播放队列-{datetime.now().strftime("%H:%M:%S")}')

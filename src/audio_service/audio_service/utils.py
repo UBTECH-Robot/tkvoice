@@ -29,10 +29,10 @@ class AudioPlayer:
         wait_for_audio_ready()
         self.audio = pyaudio.PyAudio()
         self.device_info = self.audio.get_default_output_device_info()
-        self.question_lock = threading.Lock()
-        self.question_audio_map_lock = threading.Lock()
-        self.question_text = ""
-        self.question_audio_map = {}
+        self.audioid_lock = threading.Lock()
+        self.audio_queues_map_lock = threading.Lock()
+        self.audioid = ""
+        self.audio_queues_map = {}
 
         self.stream_lock = threading.Lock()
         self.playing_stream = self.open_stream()
@@ -48,15 +48,15 @@ class AudioPlayer:
     def is_speaking(self) -> bool:
         return self.is_speaking_event.is_set()
     
-    def set_question_text(self, text: str):
-        with self.question_lock:
-            self.question_text = text
-        with self.question_audio_map_lock:
-            self.question_audio_map[text] = Queue()
+    def set_audioid(self, text: str):
+        with self.audioid_lock:
+            self.audioid = text
+        with self.audio_queues_map_lock:
+            self.audio_queues_map[text] = Queue()
 
-    def get_question_text(self) -> str:
-        with self.question_lock:
-            return self.question_text
+    def get_audioid(self) -> str:
+        with self.audioid_lock:
+            return self.audioid
         
     def open_stream(self):
         with self.stream_lock:
@@ -86,13 +86,13 @@ class AudioPlayer:
         raise last_exc
     
     def stop_other_audio_and_clear_queue(self):
-        question_text = self.get_question_text()
-        with self.question_audio_map_lock:
-            for q_text in list(self.question_audio_map.keys()):
-                if q_text == question_text:
+        audioid = self.get_audioid()
+        with self.audio_queues_map_lock:
+            for q_text in list(self.audio_queues_map.keys()):
+                if q_text == audioid:
                     continue
                 try:
-                    del self.question_audio_map[q_text]
+                    del self.audio_queues_map[q_text]
                 except KeyError:
                     pass
 
@@ -108,12 +108,12 @@ class AudioPlayer:
 
         self.audio.terminate()
 
-    def try_put(self, question_text: str, audio_data: bytes):
-        if question_text not in self.question_audio_map:
-            with self.question_audio_map_lock:
-                if question_text not in self.question_audio_map:
-                    self.question_audio_map[question_text] = Queue()
-        queue = self.question_audio_map[question_text]
+    def try_put(self, audioid: str, audio_data: bytes):
+        if audioid not in self.audio_queues_map:
+            with self.audio_queues_map_lock:
+                if audioid not in self.audio_queues_map:
+                    self.audio_queues_map[audioid] = Queue()
+        queue = self.audio_queues_map[audioid]
         try:
             queue.put(audio_data, timeout=1)
         except Full:
@@ -121,7 +121,7 @@ class AudioPlayer:
             queue.put(audio_data)
 
     def play(self, audio_data: bytes):
-        self.try_put(self.get_question_text(), audio_data)
+        self.try_put(self.get_audioid(), audio_data)
 
     def keep_playing_audio(self):
         while not self.stop_event.is_set():            
@@ -130,11 +130,11 @@ class AudioPlayer:
                 continue
             queue = None
             try:
-                q_text = self.get_question_text()
-                if q_text not in self.question_audio_map:
+                q_text = self.get_audioid()
+                if q_text not in self.audio_queues_map:
                     time.sleep(0.01)
                     continue
-                queue = self.question_audio_map.get(q_text)
+                queue = self.audio_queues_map.get(q_text)
                 if queue is None:
                     time.sleep(0.01)
                     continue
