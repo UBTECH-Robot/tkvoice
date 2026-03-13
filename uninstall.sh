@@ -4,17 +4,40 @@ set -e
 
 ./tkvoice.sh stop || true
 
-echo "[1/5] 开始卸载本地 Ollama ..."
-if [ -d "res/ollama" ]; then
-    cd res/ollama
-    if [ -x "./uninstall_ollama.sh" ]; then
-        ./uninstall_ollama.sh
+echo "[1/5] 开始卸载 Ollama ..."
+OLLAMA_REMOTE_HOST="192.168.41.3"
+OLLAMA_REMOTE_USER="nvidia"
+
+# 检查 Ollama 安装位置
+if ping -c 1 -W 2 "$OLLAMA_REMOTE_HOST" >/dev/null 2>&1; then
+    echo "[INFO] 检测到 $OLLAMA_REMOTE_HOST 可达，尝试远程卸载 Ollama..."
+
+    # 动态查找远程 ollama 目录
+    REMOTE_OLLAMA_DIR=$(ssh "${OLLAMA_REMOTE_USER}@${OLLAMA_REMOTE_HOST}" "find /home -path '*/tkvoice_release_*/res/ollama' -type d 2>/dev/null | head -1")
+
+    if [ -n "$REMOTE_OLLAMA_DIR" ] && ssh "${OLLAMA_REMOTE_USER}@${OLLAMA_REMOTE_HOST}" "test -f '${REMOTE_OLLAMA_DIR}/uninstall_ollama.sh'" 2>/dev/null; then
+        ssh -t "${OLLAMA_REMOTE_USER}@${OLLAMA_REMOTE_HOST}" "cd '${REMOTE_OLLAMA_DIR}' && bash uninstall_ollama.sh"
+        echo "[OK] 远程 Ollama 卸载完成"
     else
-        echo "⚠️ 找不到可执行的卸载脚本 ./uninstall_ollama.sh，跳过 Ollama 卸载。"
+        # 远程没有卸载脚本，尝试直接卸载服务
+        echo "[INFO] 远程未找到卸载脚本，尝试直接卸载服务..."
+        ssh -t "${OLLAMA_REMOTE_USER}@${OLLAMA_REMOTE_HOST}" "sudo systemctl stop ollama 2>/dev/null || true; sudo systemctl disable ollama 2>/dev/null || true; sudo rm -f /etc/systemd/system/ollama.service; sudo systemctl daemon-reload; sudo rm -rf /usr/share/ollama /usr/lib/ollama /home/ollama; sudo userdel -r ollama 2>/dev/null || true; sudo groupdel ollama 2>/dev/null || true"
+        echo "[OK] 远程 Ollama 服务已清理"
     fi
-    cd - >/dev/null
 else
-    echo "⚠️ 未找到 res/ollama 目录，跳过 Ollama 卸载。"
+    echo "[INFO] $OLLAMA_REMOTE_HOST 不可达，尝试本地卸载 Ollama..."
+
+    if [ -d "res/ollama" ]; then
+        cd res/ollama
+        if [ -x "./uninstall_ollama.sh" ]; then
+            ./uninstall_ollama.sh
+        else
+            echo "⚠️ 找不到可执行的卸载脚本 ./uninstall_ollama.sh，跳过 Ollama 卸载。"
+        fi
+        cd - >/dev/null
+    else
+        echo "⚠️ 未找到 res/ollama 目录，跳过 Ollama 卸载。"
+    fi
 fi
 
 

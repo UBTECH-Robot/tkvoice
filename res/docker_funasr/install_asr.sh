@@ -176,13 +176,31 @@ mkdir -p "$(dirname "$MODELS_DIR")"
 sudo chown root:docker "$(dirname "$MODELS_DIR")"
 
 if [ -f "models.tar.gz" ]; then
-    if [ -d "$MODELS_DIR" ]; then
-        echo "清空旧模型目录 $MODELS_DIR ..."
-        sudo rm -rf "$MODELS_DIR"
+    # 计算压缩包解压后的预期大小
+    tar_size=$(tar -tzvf models.tar.gz | awk '{sum+=$3} END {printf "%.0f", sum}')
+
+    # 检查是否需要解压
+    need_extract=true
+    if [ -d "$MODELS_DIR" ] && [ -n "$tar_size" ] && [ "$tar_size" -gt 0 ]; then
+        dir_size=$(du -sb "$MODELS_DIR" 2>/dev/null | awk '{print $1}')
+        # 允许 5% 的误差范围（文件系统开销可能导致细微差异）
+        diff=$((dir_size > tar_size ? dir_size - tar_size : tar_size - dir_size))
+        threshold=$((tar_size / 20))  # 5%
+        if [ "$diff" -le "$threshold" ]; then
+            echo "✅ 模型目录已存在且大小匹配 ($dir_size vs $tar_size)，跳过解压"
+            need_extract=false
+        fi
     fi
-    echo "📂 解压模型文件..."
-    sudo tar -zxvf models.tar.gz -C "$(dirname "$MODELS_DIR")"
-    sudo chmod -R 777 "$MODELS_DIR"
+
+    if [ "$need_extract" = true ]; then
+        if [ -d "$MODELS_DIR" ]; then
+            echo "清空旧模型目录 $MODELS_DIR ..."
+            sudo rm -rf "$MODELS_DIR"
+        fi
+        echo "📂 解压模型文件..."
+        sudo tar -zxvf models.tar.gz -C "$(dirname "$MODELS_DIR")"
+        sudo chmod -R 777 "$MODELS_DIR"
+    fi
 else
     echo "⚠️  未找到 models.tar.gz，跳过模型解压。"
 fi

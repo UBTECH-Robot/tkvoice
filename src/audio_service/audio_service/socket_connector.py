@@ -1,5 +1,6 @@
 from socket import *
 from audio_service.log_config import setup_logger
+import sys
 
 logging = setup_logger(__name__)
 
@@ -20,6 +21,7 @@ class SocketConnector:
             logging.error(f"连接超时: {ip}:{port}")
         except Exception as e:
             logging.error(f"连接服务器失败: {ip}:{port}, 错误: {e}")
+            sys.exit(1)
 
     def close(self):
         self.run = False

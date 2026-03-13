@@ -6,7 +6,7 @@ package_name = 'audio_service'
 
 setup(
     name=package_name,
-    version="0.2.26",
+    version="0.3.6",
     packages=find_packages(exclude=['test']),
     data_files=[
         # ('share/' + package_name + '/launch', ['audio_service/launch/asr_sentence_launch.py']),
@@ -18,7 +18,7 @@ setup(
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='ubuntu',
-    maintainer_email='kai.yang@x-humanoid.com',
+    maintainer_email='han.li@ubtrobot.com',
     description='TODO: Package description',
     license='TODO: License declaration',
     entry_points={

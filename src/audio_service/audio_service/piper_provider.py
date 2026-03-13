@@ -7,7 +7,6 @@ import os
 os.environ["TORCHDYNAMO_DISABLE"] = "1"
 os.environ["DISABLE_TORCH_COMPILE"] = "1"
 import time
-import numpy as np
 import onnxruntime as ort
 ort.set_default_logger_severity(4)
 import pyaudio
@@ -65,11 +64,12 @@ class PiperProvider:
         if self.init_player:
             self.pyaudio_instance = pyaudio.PyAudio()
             device_info = self.pyaudio_instance.get_default_output_device_info()
-            
+
+            sample_rate, channels, sample_width = self.get_audio_param()  # 获取音频参数，确保与 Piper 模型一致
             self.audio_stream = self.pyaudio_instance.open(
-                format=pyaudio.paFloat32,
-                channels=1,
-                rate=self.sample_rate,
+                format=pyaudio.paInt16,
+                channels=channels,
+                rate=sample_rate,
                 output=True,
                 output_device_index=device_info['index']
             )
@@ -78,22 +78,41 @@ class PiperProvider:
         self.piper_instance = PiperVoice.load(self.model_path, config_path=self.tts_config_path, use_cuda=True)
         testpint(f"[TTS] Piper 模型采样率: {self.piper_instance.config.sample_rate}")
 
+    def get_audio_param(self) -> tuple:
+        """
+        获取音频参数。使用固定文字合成音频来获取参数。
+
+        Returns:
+            tuple: (sample_rate, channels, sample_width)
+        """
+        test_text = "你好，我是天工形者，很高兴认识你。"
+        try:
+            chunks = self.piper_instance.synthesize(test_text, syn_config=self.piper_syn_config)
+            for chunk in chunks:
+                # 从第一个 chunk 获取参数
+                # 使用 audio_int16_bytes，参数与 sample_width 一致
+                return chunk.sample_rate, chunk.sample_channels, chunk.sample_width
+            # 如果没有 chunk，返回默认值
+            return 21000, 1, 2
+        except Exception as e:
+            testpint(f"[TTS] 获取音频参数失败: {e}")
+            return 21000, 1, 2
+
     def tts(self, text: str) -> bytes:
         """
-        使用 piper 的 synthesize() 获取音频数组（float32），直接可播放。
+        使用 piper 的 synthesize() 获取音频数据（16-bit PCM），直接可播放。
         """
         try:
             chunks = self.piper_instance.synthesize(text, syn_config=self.piper_syn_config)
-            audio_list = [chunk.audio_float_array for chunk in chunks]
-            
-            if not audio_list:
-                return np.array([], dtype=np.float32)
+            audio_bytes_list = [chunk.audio_int16_bytes for chunk in chunks]
 
-            waveform = np.concatenate(audio_list).astype(np.float32).tobytes()
-            return waveform
+            if not audio_bytes_list:
+                return b''
+
+            return b''.join(audio_bytes_list)
         except Exception as e:
             testpint(f"[TTS] 生成音频失败: {e}")
-            return np.array([], dtype=np.float32)
+            return b''
         
     def play(self, waveform: bytes):
         try:
@@ -136,6 +155,9 @@ def main(args=None):
 if __name__ == '__main__':
     main()
 
-# cd /home/nvidia/voicelocal/tkvoice_release/src/audio_service
-# python -m audio_service.piper_provider
+# cd /home/nvidia/tkvoice/src/audio_service
+# win10 powershell:
+# $env:MODEL_DIR="E:\\space-work\\source-code\\tiangong\\aigc\\tkvoice\\res\\"; python -m audio_service.piper_provider
 
+# orin1:
+# MODEL_DIR=/home/nvidia/tkvoice/res/ python -m audio_service.piper_provider

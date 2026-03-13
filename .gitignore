@@ -16,3 +16,6 @@ github_first_push.sh
 .env
 roslogs/
 *.log
+resume
+.claude/
+.vscode/

@@ -149,6 +149,7 @@ StandardOutput=append:/var/log/ollama.log
 StandardError=append:/var/log/ollama.log
 Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 Environment="LD_LIBRARY_PATH=/usr/lib/ollama/cuda_jetpack6:/usr/local/cuda/lib64:/usr/lib"
+Environment="OLLAMA_HOST=0.0.0.0:11434"
 
 [Install]
 WantedBy=multi-user.target

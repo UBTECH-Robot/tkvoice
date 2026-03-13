@@ -1,7 +1,9 @@
+import os
 import subprocess
 import httpx
 import json
 import multiprocessing
+import queue
 import time
 from datetime import datetime
 from collections import deque
@@ -10,7 +12,14 @@ logging = setup_logger(__name__)
 
 class OllamaChatClient:
     def __init__(self, base_url="http://localhost:11434", model="qwen2.5:1.5b", max_history=1):
-        self.base_url = base_url
+        b_url = base_url        
+        LLM_URL = os.environ.get("LLM_URL") # 环境变量优先级最高，如果在orin2上安装了ollama，可设置为 http://192.168.41.3:11434，以免在orin1上安装ollama占用orin1的过多硬盘空间
+        if LLM_URL:
+            b_url = LLM_URL
+            logging.info(f"环境变量 LLM_URL 已设置，使用 {LLM_URL} 作为 Ollama 服务地址")
+        else:
+            logging.info(f"环境变量 LLM_URL 未设置，使用默认地址 {base_url} 作为 Ollama 服务地址")
+        self.base_url = b_url
         self.chat_url = f"{self.base_url}/api/chat"
         self.model = model
         self.max_history = max_history
@@ -23,6 +32,7 @@ class OllamaChatClient:
         self.max_len = 25
 
         # 控制字段
+        self.mp_context = multiprocessing.get_context("spawn")
         self.process = None
         self.queue = None
 
@@ -182,8 +192,8 @@ class OllamaChatClient:
         self.set_interrupted(True)
 
         messages_payload = self.get_messages_payload(user_input)
-        q = multiprocessing.Queue()
-        p = multiprocessing.Process(
+        q = self.mp_context.Queue()
+        p = self.mp_context.Process(
             target=self._stream_worker,
             args=(self.chat_url, self.model, messages_payload, q),
             daemon=True,
@@ -224,7 +234,7 @@ class OllamaChatClient:
                             buffer = buffer[idx + 1:]
                             break
 
-            except multiprocessing.queues.Empty:
+            except queue.Empty:
                 if not p.is_alive():
                     logging.info("[主进程] 子进程已 not alive, 流式输出将结束")
                     break
@@ -250,11 +260,19 @@ class OllamaChatClient:
 
     def set_interrupted(self, interrupted=True):
         """终止子进程"""
-        if interrupted and getattr(self, "process", None):
-            if self.process.is_alive():
-                logging.debug(f"[主进程] 强制结束子进程 PID={self.process.pid}")
-                self.process.terminate()
-                self.process.join(timeout=1)
+        if interrupted:
+            process = getattr(self, "process", None)
+            stream_queue = getattr(self, "queue", None)
+            if process is not None and process.is_alive():
+                logging.debug(f"[主进程] 强制结束子进程 PID={process.pid}")
+                process.terminate()
+                process.join(timeout=1)
+            if stream_queue is not None:
+                try:
+                    stream_queue.close()
+                    stream_queue.join_thread()
+                except Exception:
+                    pass
             self.process = None
             self.queue = None
 

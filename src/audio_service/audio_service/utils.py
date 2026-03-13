@@ -3,10 +3,6 @@ import time
 import traceback
 import pyaudio
 from queue import Queue, Empty, Full
-import wave
-import os
-import time
-import argparse
 from audio_service.log_config import setup_logger
 logging = setup_logger(__name__)
 
@@ -25,7 +21,23 @@ def wait_for_audio_ready(max_wait=5):
     logging.info("警告：音频设备可能未准备就绪，继续执行...")
 
 class AudioPlayer:
-    def __init__(self):
+    def __init__(self,
+                 sample_rate: int = 21000,
+                 channels: int = 1,
+                 sample_width: int = 2,
+                 audio_format: int = None,
+                 frames_per_buffer: int = 1024):
+        """
+        Initialize AudioPlayer with configurable PCM audio format parameters.
+
+        Args:
+            sample_rate: Audio sample rate in Hz (default: 21000, matches piper-tts)
+            channels: Number of audio channels, 1=mono, 2=stereo (default: 1)
+            sample_width: Sample width in bytes, 1=8bit, 2=16bit, 4=32bit (default: 2 for 16-bit PCM)
+            audio_format: PyAudio format constant (e.g., pyaudio.paInt16, pyaudio.paFloat32).
+                          If None, inferred from sample_width.
+            frames_per_buffer: Buffer size in frames (default: 1024)
+        """
         wait_for_audio_ready()
         self.audio = pyaudio.PyAudio()
         self.device_info = self.audio.get_default_output_device_info()
@@ -34,19 +46,37 @@ class AudioPlayer:
         self.audioid = ""
         self.audio_queues_map = {}
 
+        # PCM audio format parameters
+        self.sample_rate = sample_rate
+        self.channels = channels
+        self.sample_width = sample_width
+        self.frames_per_buffer = frames_per_buffer
+
+        # Map sample width/format to PyAudio format
+        self.format = self._get_pyaudio_format(sample_width, audio_format)
+
         self.stream_lock = threading.Lock()
         self.playing_stream = self.open_stream()
-        self.chunk_size = 1024
 
         self.stop_event = threading.Event()
-        self.is_speaking_event = threading.Event()
+        self.playback_state_lock = threading.Lock()
+        self.playback_deadline = 0.0
+        self.output_latency_seconds = self._get_output_latency_seconds()
 
         self.playing_thread = threading.Thread(target=self.keep_playing_audio, daemon=True)
         self.playing_thread.start()
-        logging.info(f"音频播放线程已启用，音频数据将自动按顺序播放")
+        logging.info(f"音频播放线程已启用 - 采样率:{self.sample_rate}Hz, 声道:{self.channels}, 位深:{self.sample_width*8}bit")
 
     def is_speaking(self) -> bool:
-        return self.is_speaking_event.is_set()
+        """Check if audio is currently playing or has pending chunks to play."""
+        # 1. Check if there's pending audio in the queue
+        current_audioid = self.get_audioid()
+        if self._has_pending_audio(current_audioid):
+            return True
+
+        # 2. Check if audio is still being played from hardware buffer
+        with self.playback_state_lock:
+            return time.monotonic() < self.playback_deadline
     
     def set_audioid(self, text: str):
         with self.audioid_lock:
@@ -58,6 +88,63 @@ class AudioPlayer:
         with self.audioid_lock:
             return self.audioid
         
+    def _get_pyaudio_format(self, sample_width: int, audio_format: int = None):
+        """
+        Convert sample width (in bytes) to PyAudio format.
+
+        Args:
+            sample_width: Sample width in bytes (1, 2, 3, or 4)
+            audio_format: Optional PyAudio format constant. If provided, use directly.
+                          If None, inferred from sample_width.
+
+        Returns:
+            PyAudio format constant
+        """
+        if audio_format is not None:
+            return audio_format
+
+        format_map = {
+            1: pyaudio.paInt8,    # 8-bit
+            2: pyaudio.paInt16,   # 16-bit
+            3: pyaudio.paInt24,   # 24-bit
+            4: pyaudio.paFloat32, # 32-bit float
+        }
+        if sample_width not in format_map:
+            logging.warning(f"Unsupported sample width {sample_width}, using 16-bit default")
+            return pyaudio.paInt16
+        return format_map[sample_width]
+    
+    def _get_output_latency_seconds(self) -> float:
+        try:
+            latency = self.playing_stream.get_output_latency()
+            if latency is None:
+                return 0.0
+            return max(0.0, float(latency))
+        except Exception:
+            return 0.0
+
+    def _has_pending_audio(self, audioid: str) -> bool:
+        """Check if there are pending audio chunks for the given audioid."""
+        if not audioid:
+            return False
+        with self.audio_queues_map_lock:
+            queue = self.audio_queues_map.get(audioid)
+            if queue is None:
+                return False
+            return not queue.empty()
+
+    def _mark_audio_playing(self, audio_data: bytes):
+        bytes_per_second = self.sample_rate * self.channels * self.sample_width
+        if bytes_per_second <= 0:
+            return
+
+        chunk_duration = len(audio_data) / bytes_per_second
+        with self.playback_state_lock:
+            # 如果当前没有在播放，从当前时间开始
+            # 如果正在播放，从上一个截止时间继续累加
+            start_time = max(time.monotonic(), self.playback_deadline)
+            self.playback_deadline = start_time + chunk_duration + self.output_latency_seconds
+        
     def open_stream(self):
         with self.stream_lock:
             last_exc = None
@@ -66,12 +153,12 @@ class AudioPlayer:
                     device_index = self.device_info['index']
                     logging.info(f'使用的音频输出设备索引: {device_index}, 设备名称: {self.device_info["name"]}')
                     stream = self.audio.open(
-                        format=pyaudio.paFloat32,
-                        channels=1,
-                        rate=22050,
+                        format=self.format,
+                        rate=self.sample_rate,
+                        channels=self.channels,
                         output=True,
                         output_device_index=device_index,
-                        frames_per_buffer=1024
+                        frames_per_buffer=self.frames_per_buffer
                     )
                     return stream
                 except OSError as e:
@@ -96,11 +183,11 @@ class AudioPlayer:
                 except KeyError:
                     pass
 
-        self.is_speaking_event.clear()
-
     def close(self):
         self.stop_event.set()
         self.playing_thread.join(timeout=2)
+        with self.playback_state_lock:
+            self.playback_deadline = 0.0
 
         with self.stream_lock:
             self.playing_stream.stop_stream()
@@ -147,11 +234,9 @@ class AudioPlayer:
                 if audio_data is None:
                     time.sleep(0.01)
                     break
+                self._mark_audio_playing(audio_data)
                 with self.stream_lock:
-                    self.is_speaking_event.set()
                     self.playing_stream.write(audio_data)
-                if queue and queue.empty():
-                    self.is_speaking_event.clear()
 
             except Exception as e:
                 logging.info(f"播放音频时发生错误: {e}")

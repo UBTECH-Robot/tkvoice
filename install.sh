@@ -9,7 +9,7 @@ REMOTE_USER="ubuntu"
 REMOTE_IP="192.168.41.1"
 REMOTE_DIR="/home/ubuntu"
 
-RELEASE_DIR="tkvoice_release_0.2.26_1201_164512"
+RELEASE_DIR="tkvoice_release_0.3.6_0313_170837"
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 PARENT_DIR="$( dirname "$SCRIPT_DIR" )"
@@ -88,7 +88,7 @@ cd "${BASE_DIR}/res"
 python3 -m pip uninstall onnxruntime piper-tts onnxruntime-gpu -y || sudo python3 -m pip uninstall onnxruntime piper-tts onnxruntime-gpu -y || true
 python3 -m pip install --no-cache-dir onnxruntime-1.23.2-cp310-cp310-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl piper_tts-1.3.0-cp39-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.manylinux_2_28_aarch64.whl httpx==0.28.1 websockets==15.0.1
 python3 -m pip uninstall onnxruntime -y || sudo python3 -m pip uninstall onnxruntime -y || true
-python3 -m pip install --no-cache-dir onnxruntime_gpu-1.20.1-cp310-cp310-linux_aarch64.whl
+python3 -m pip install --no-cache-dir openai onnxruntime_gpu-1.20.1-cp310-cp310-linux_aarch64.whl
 echo "[OK] Python 依赖安装完成"
 
 rm -f *.whl
@@ -97,19 +97,48 @@ rm -f *.whl
 # 7 安装 Ollama
 # ========================
 cd "${PARENT_DIR}"
-tar -xvf "${RELEASE_DIR}.tar" "${RELEASE_DIR}/res/ollama/uninstall_ollama.sh" \
-    "${RELEASE_DIR}/res/ollama/install_ollama.sh" \
-    "${RELEASE_DIR}/res/ollama/import_ollama_model.sh"
-    
-cd "${BASE_DIR}/res/ollama"
 
-./install_ollama.sh "${PARENT_DIR}" "${RELEASE_DIR}"
-echo "[OK] Ollama 安装完成"
+# 检查是否需要远程安装 Ollama
+OLLAMA_REMOTE_HOST="192.168.41.3"
+OLLAMA_REMOTE_USER="nvidia"
+OLLAMA_PATH="${BASE_DIR}/res/ollama"
 
-cd "${BASE_DIR}/res/ollama"
-sudo find "${BASE_DIR}/res/ollama" -mindepth 1 ! -name 'uninstall_ollama.sh' -exec rm -rf {} +
+if ping -c 1 -W 2 "$OLLAMA_REMOTE_HOST" >/dev/null 2>&1; then
+    echo "[INFO] 检测到 $OLLAMA_REMOTE_HOST 可达，准备远程安装 Ollama..."
 
-echo "[OK] 已删除本地临时目录 res/ollama 下除卸载脚本外的所有文件"
+    # 解压整个 ollama 目录
+    tar -xvf "${RELEASE_DIR}.tar" "${RELEASE_DIR}/res/ollama/"
+
+    cd "${OLLAMA_PATH}"
+
+    # 同步文件到远程（源路径末尾加 / 表示同步目录内容）
+    ssh "${OLLAMA_REMOTE_USER}@${OLLAMA_REMOTE_HOST}" "mkdir -p '${OLLAMA_PATH}'"
+    echo "[INFO] 开始传输 Ollama 文件到 ${OLLAMA_REMOTE_USER}@${OLLAMA_REMOTE_HOST}:${OLLAMA_PATH}"
+    rsync -av --progress --delete -e "ssh -o StrictHostKeyChecking=no" "${OLLAMA_PATH}/" "${OLLAMA_REMOTE_USER}@${OLLAMA_REMOTE_HOST}:${OLLAMA_PATH}/"
+    echo "[OK] Ollama 文件传输完成！"
+
+    rm -rf "${OLLAMA_PATH}"
+    echo "[OK] 已删除本地临时目录 res/ollama"
+
+    # 远程执行安装和清理（合并为一个 ssh 会话，sudo 密码只需输入一次）
+    ssh -t "${OLLAMA_REMOTE_USER}@${OLLAMA_REMOTE_HOST}" "cd '${OLLAMA_PATH}' && bash install_ollama.sh '${PARENT_DIR}' '${RELEASE_DIR}' && sudo find '${OLLAMA_PATH}' -mindepth 1 ! -name 'uninstall_ollama.sh' -exec rm -rf {} +"
+    echo "[OK] Ollama 远程安装完成并清理除卸载脚本外的所有文件！"
+    export LLM_URL="http://192.168.41.3:11434"
+else
+    echo "[INFO] $OLLAMA_REMOTE_HOST 不可达，在本地安装 Ollama..."
+
+    tar -xvf "${RELEASE_DIR}.tar" "${RELEASE_DIR}/res/ollama/uninstall_ollama.sh" \
+        "${RELEASE_DIR}/res/ollama/install_ollama.sh" \
+        "${RELEASE_DIR}/res/ollama/import_ollama_model.sh"
+
+    cd "${OLLAMA_PATH}"
+    ./install_ollama.sh "${PARENT_DIR}" "${RELEASE_DIR}"
+    echo "[OK] Ollama 安装完成"
+
+    cd "${OLLAMA_PATH}"
+    sudo find "${OLLAMA_PATH}" -mindepth 1 ! -name 'uninstall_ollama.sh' -exec rm -rf {} +
+    echo "[OK] 已删除本地临时目录 res/ollama 下除卸载脚本外的所有文件"
+fi
 
 # ========================
 # 8 解压主项目并编译 ROS2
