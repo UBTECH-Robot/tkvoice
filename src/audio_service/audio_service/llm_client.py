@@ -38,7 +38,6 @@ class LLMClient:
         self.queue = None
 
         self.set_system_message(self.sys_message)
-        self.load_model()
 
     def test_llm_ip(self, timeout=2):
         """
@@ -81,9 +80,6 @@ class LLMClient:
         messages.extend(list(self.history))
         messages.append({"role": "user", "content": user_input})
         return messages
-
-    def load_model(self, model_name=None):
-        return
 
     @staticmethod
     def _stream_worker(base_url, model, messages_payload, queue, api_key):
