@@ -3,6 +3,7 @@ import httpx
 import os
 import json
 import multiprocessing
+import queue
 import time
 from datetime import datetime
 from collections import deque
@@ -30,6 +31,7 @@ class LLMClient:
         self.max_len = 70
 
         # 控制字段
+        self.mp_context = multiprocessing.get_context("spawn")
         self.process = None
         self.queue = None
 
@@ -60,7 +62,7 @@ class LLMClient:
         主进程再负责拼接句子和分段逻辑。
         """
         try:
-            logging.info(f'[子进程] 开始请求 {base_url}')
+            logging.info(f'[Subprocess] 开始请求 {base_url}')
             with OpenAI(api_key=api_key, base_url=base_url) as client:
                 completion = client.chat.completions.create(
                     model=model,
@@ -68,19 +70,19 @@ class LLMClient:
                     stream=True,
                     stream_options={"include_usage": True}
                 )
-                logging.info(f'[子进程] 请求已发起，等待输出')
+                logging.info(f'[Subprocess] 请求已发起，等待输出')
                 for chunk in completion:
                     if chunk.choices:
                         content = chunk.choices[0].delta.content or ""
                         queue.put(content)
                     elif chunk.usage:
-                        logging.debug(f"[子进程] 总计 Tokens: {chunk.usage.total_tokens}")
+                        logging.debug(f"[Subprocess] 总计 Tokens: {chunk.usage.total_tokens}")
 
         except Exception as e:
-            logging.info(f'[子进程] 出错: {e}', exc_info=True)
+            logging.info(f'[Subprocess] 出错: {e}', exc_info=True)
         finally:
             queue.put(None)  # 表示结束
-            logging.debug("[子进程] 数据发送完成，等待主进程处理。")
+            logging.debug("[Subprocess] 数据发送完成，等待主进程处理。")
 
     def stream_sentence(self, user_input):
         """在子进程发起请求并通过Queue流式返回结果（主进程负责拼句）"""
@@ -88,8 +90,8 @@ class LLMClient:
         self.set_interrupted(True)
 
         messages_payload = self.get_messages_payload(user_input)
-        q = multiprocessing.Queue()
-        p = multiprocessing.Process(
+        q = self.mp_context.Queue()
+        p = self.mp_context.Process(
             target=self._stream_worker,
             args=(self.llm_endpoint, self.llm_model, messages_payload, q, self.api_key),
             daemon=True,
@@ -132,7 +134,7 @@ class LLMClient:
                             buffer = buffer[idx + 1:]
                             break
 
-            except multiprocessing.queues.Empty:
+            except queue.Empty:
                 if not p.is_alive():
                     logging.debug("[NLP] Subprocess ended, stream output complete")
                     break
@@ -160,11 +162,19 @@ class LLMClient:
 
     def set_interrupted(self, interrupted=True):
         """终止子进程"""
-        if interrupted and getattr(self, "process", None):
-            if self.process.is_alive():
-                logging.debug(f"[主进程] 强制结束子进程 PID={self.process.pid}")
-                self.process.terminate()
-                self.process.join(timeout=1)
+        if interrupted:
+            process = getattr(self, "process", None)
+            stream_queue = getattr(self, "queue", None)
+            if process is not None and process.is_alive():
+                logging.debug(f"[MainProcess] Subprocess PID={process.pid} terminating...")
+                process.terminate()
+                process.join(timeout=1)
+            if stream_queue is not None:
+                try:
+                    stream_queue.close()
+                    stream_queue.join_thread()
+                except Exception:
+                    pass
             self.process = None
             self.queue = None
 
