@@ -70,18 +70,18 @@ sudo groupdel ollama 2>/dev/null || true
 
 
 # 安装包文件名
-BASE_TGZ="ollama-linux-arm64.tgz"
-JETPACK6_TGZ="ollama-linux-arm64-jetpack6.tgz"
-BASE_URL="https://github.com/ollama/ollama/releases/download/v0.12.6/ollama-linux-arm64.tgz"
-JETPACK6_URL="https://github.com/ollama/ollama/releases/download/v0.12.6/ollama-linux-arm64-jetpack6.tgz"
+BASE_TGZ="ollama-linux-arm64.tar.zst"
+JETPACK6_TGZ="ollama-linux-arm64-jetpack6.tar.zst"
+BASE_URL="https://github.com/ollama/ollama/releases/download/v0.17.7/ollama-linux-arm64.tar.zst"
+JETPACK6_URL="https://github.com/ollama/ollama/releases/download/v0.17.7/ollama-linux-arm64-jetpack6.tar.zst"
 
 if [ ! -f "$BASE_TGZ" ]; then
-    if ! tar -tf "${BASE_DIR}.tar" | grep -q "/res/ollama/${BASE_TGZ}"; then
+    if ! tar --zstd -tf "${BASE_DIR}.tar.zst" | grep -q "/res/ollama/${BASE_TGZ}"; then
         echo "[WARN] 发布包中未找到 /res/ollama/${BASE_TGZ}，尝试下载..."
         download_file "$BASE_URL" "$BASE_TGZ"
     else
         echo "📦 从发布包中提取Ollama基础包 ${BASE_TGZ}..."
-        tar -C "${PARENT_DIR}" -xvf "${BASE_DIR}.tar" \
+        tar -C "${PARENT_DIR}" --zstd -xvf "${BASE_DIR}.tar.zst" \
             "${RELEASE_DIR}/res/ollama/${BASE_TGZ}"
         # tar --delete -f "${BASE_DIR}.tar" "${RELEASE_DIR}/res/ollama/${BASE_TGZ}"
     fi
@@ -89,7 +89,7 @@ else
     echo "✅ 已存在: $BASE_TGZ"
 fi
 echo "[4/11] 安装基础 Ollama..."
-sudo tar -C /usr -xzvf "$BASE_TGZ"
+sudo tar -C /usr -I zstd -xvf "$BASE_TGZ"
 sudo rm -rf "$BASE_TGZ"
 
 if [ ! -f /usr/bin/ollama ]; then
@@ -99,12 +99,12 @@ fi
 
 
 if [ ! -f "$JETPACK6_TGZ" ]; then
-    if ! tar -tf "${BASE_DIR}.tar" | grep -q "/res/ollama/${JETPACK6_TGZ}"; then
+    if ! tar --zstd -tf "${BASE_DIR}.tar.zst" | grep -q "/res/ollama/${JETPACK6_TGZ}"; then
         echo "[WARN] 发布包中未找到 /res/ollama/${JETPACK6_TGZ}，尝试下载..."
         download_file "$JETPACK6_URL" "$JETPACK6_TGZ"
     else
         echo "📦 从发布包中提取Ollama JetPack6包 ${JETPACK6_TGZ}..."
-        tar -C "${PARENT_DIR}" -xvf "${BASE_DIR}.tar" \
+        tar -C "${PARENT_DIR}" --zstd -xvf "${BASE_DIR}.tar.zst" \
             "${RELEASE_DIR}/res/ollama/${JETPACK6_TGZ}"
         # tar --delete -f "${BASE_DIR}.tar" "${RELEASE_DIR}/res/ollama/${JETPACK6_TGZ}"
     fi
@@ -113,7 +113,7 @@ else
 fi
 
 echo "[5/11] 覆盖安装 JetPack6 GPU 优化版本..."
-sudo tar -C /usr -xzvf "$JETPACK6_TGZ"
+sudo tar -C /usr -I zstd -xvf "$JETPACK6_TGZ"
 sudo rm -rf "$JETPACK6_TGZ"
 
 echo "[6/11] 创建 Ollama 用户与主目录..."

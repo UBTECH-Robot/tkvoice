@@ -86,7 +86,7 @@ echo "[INFO] 生成最终压缩包 ${RELEASE_DIR}.tar ..."
 tar -cvf "${RELEASE_DIR}.tar" \
     -C . src \
     res/docker_funasr/asr.latest.tar.gz \
-    res/docker_funasr/model.tar.gz \
+    res/docker_funasr/models.tar.zst \
     res/docker_funasr/install_asr.sh \
     res/docker_funasr/uninstall_asr.sh \
     res/docker_funasr/startup.sh \

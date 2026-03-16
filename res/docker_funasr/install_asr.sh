@@ -175,9 +175,9 @@ fi
 mkdir -p "$(dirname "$MODELS_DIR")"
 sudo chown root:docker "$(dirname "$MODELS_DIR")"
 
-if [ -f "models.tar.gz" ]; then
+if [ -f "models.tar.zst" ]; then
     # 计算压缩包解压后的预期大小
-    tar_size=$(tar -tzvf models.tar.gz | awk '{sum+=$3} END {printf "%.0f", sum}')
+    tar_size=$(tar I zstd -tvf models.tar.zst | awk '{sum+=$3} END {printf "%.0f", sum}')
 
     # 检查是否需要解压
     need_extract=true
@@ -198,11 +198,11 @@ if [ -f "models.tar.gz" ]; then
             sudo rm -rf "$MODELS_DIR"
         fi
         echo "📂 解压模型文件..."
-        sudo tar -zxvf models.tar.gz -C "$(dirname "$MODELS_DIR")"
+        sudo tar I zstd -xvf models.tar.zst -C "$(dirname "$MODELS_DIR")"
         sudo chmod -R 777 "$MODELS_DIR"
     fi
 else
-    echo "⚠️  未找到 models.tar.gz，跳过模型解压。"
+    echo "⚠️  未找到 models.tar.zst，跳过模型解压。"
 fi
 
 if ! sudo docker image inspect "$IMAGE_NAME" &>/dev/null; then

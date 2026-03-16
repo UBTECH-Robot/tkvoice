@@ -9,7 +9,7 @@ REMOTE_USER="ubuntu"
 REMOTE_IP="192.168.41.1"
 REMOTE_DIR="/home/ubuntu"
 
-RELEASE_DIR="tkvoice_release_0.3.6_0313_170837"
+RELEASE_DIR="tkvoice_release_0.3.12_0316_095057"
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 PARENT_DIR="$( dirname "$SCRIPT_DIR" )"
@@ -82,11 +82,11 @@ cd "${PARENT_DIR}"
 tar -xvf "${RELEASE_DIR}.tar" \
     "${RELEASE_DIR}/res/onnxruntime-1.23.2-cp310-cp310-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl" \
     "${RELEASE_DIR}/res/onnxruntime_gpu-1.20.1-cp310-cp310-linux_aarch64.whl" \
-    "${RELEASE_DIR}/res/piper_tts-1.3.0-cp39-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.manylinux_2_28_aarch64.whl"
+    "${RELEASE_DIR}/res/piper_tts-1.4.1-cp39-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.manylinux_2_28_aarch64.whl"
 
 cd "${BASE_DIR}/res"
 python3 -m pip uninstall onnxruntime piper-tts onnxruntime-gpu -y || sudo python3 -m pip uninstall onnxruntime piper-tts onnxruntime-gpu -y || true
-python3 -m pip install --no-cache-dir onnxruntime-1.23.2-cp310-cp310-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl piper_tts-1.3.0-cp39-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.manylinux_2_28_aarch64.whl httpx==0.28.1 websockets==15.0.1
+python3 -m pip install --no-cache-dir onnxruntime-1.23.2-cp310-cp310-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl piper_tts-1.4.1-cp39-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.manylinux_2_28_aarch64.whl httpx==0.28.1 websockets==15.0.1
 python3 -m pip uninstall onnxruntime -y || sudo python3 -m pip uninstall onnxruntime -y || true
 python3 -m pip install --no-cache-dir openai onnxruntime_gpu-1.20.1-cp310-cp310-linux_aarch64.whl
 echo "[OK] Python 依赖安装完成"

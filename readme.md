@@ -82,7 +82,7 @@ ollama的安装步骤可参考项目根目录下 `/res/ollama/install_ollama.sh`
 先登录到 41.2 的 Orin 板
 1. 编译：
 ```bash
-cd tkvoice_release_0.3.6_0313_170837
+cd tkvoice_release_0.3.12_0316_095057
 rm -rf build install log && colcon build --packages-select audio_message audio_service
 ```
 
@@ -105,24 +105,24 @@ ros2 launch audio_service asr_llm_tts_process_launch.py
 
 # 安装
 
-release_dir=tkvoice_release_0.3.6_0313_170837
+release_dir=tkvoice_release_0.3.12_0316_095057
 
-1. 先从本地电脑上将 tkvoice_release_0.3.6_0313_170837.tar 传到 41.2 的 Orin 板：
+1. 先从本地电脑上将 tkvoice_release_0.3.12_0316_095057.tar 传到 41.2 的 Orin 板：
 ```bash
-scp tkvoice_release_0.3.6_0313_170837.tar nvidia@192.168.41.2:/home/nvidia
+scp tkvoice_release_0.3.12_0316_095057.tar nvidia@192.168.41.2:/home/nvidia
 ```
 
 根目录的 `install.sh` 脚本已整合了 `/res/docker/install_asr.sh` 和 `/res/ollama/install_ollama.sh` 以及 .whl 包的安装，直接执行，顺利的话就可直接完成docker，funasr，ollama，piper的安装。
 
-2. 登录到 41.2 的 Orin 板后，先只解压 tkvoice_release_0.3.6_0313_170837.tar 内的安装脚本 install.sh，其他的解压工作由安装脚本按需完成：
+2. 登录到 41.2 的 Orin 板后，先只解压 tkvoice_release_0.3.12_0316_095057.tar 内的安装脚本 install.sh，其他的解压工作由安装脚本按需完成：
 ```bash
-tar -xvf tkvoice_release_0.3.6_0313_170837.tar tkvoice_release_0.3.6_0313_170837/install.sh
+tar -xvf tkvoice_release_0.3.12_0316_095057.tar tkvoice_release_0.3.12_0316_095057/install.sh
 
 ```
 
 3. 进入目录，执行安装脚本：
 ```bash
-cd tkvoice_release_0.3.6_0313_170837
+cd tkvoice_release_0.3.12_0316_095057
 chmod +x install.sh
 # 注意，执行 install.sh 的时候会多次要求输入密码，注意看清楚是需要输入 x86 上 ubuntu 用户的密码还是 Orin 板上 nvidia 用户的密码
 # 该安装脚本会做以下操作：
@@ -134,18 +134,18 @@ chmod +x install.sh
 
 4. 卸载
 ```bash
-cd ~/tkvoice_release_0.3.6_0313_170837
+cd ~/tkvoice_release_0.3.12_0316_095057
 chmod +x uninstall.sh
 ./uninstall.sh
 # 注意，执行 uninstall.sh 的时候会多次要求输入密码，注意看清楚是需要输入 x86 上 ubuntu 用户的密码还是 Orin 板上 nvidia 用户的密码，卸载脚本会卸载 Orin 板上的 ollama 和 x86 上的 Funasr 容器和镜像以及 docker 服务
-# 再注意，执行uninstall.sh 后 ~/tkvoice_release_0.3.6_0313_170837 目录会删除掉，也就是卸载脚本自身也会删除掉，但是 ~/tkvoice_release_0.3.6_0313_170837.tar 文件不会删除
+# 再注意，执行uninstall.sh 后 ~/tkvoice_release_0.3.12_0316_095057 目录会删除掉，也就是卸载脚本自身也会删除掉，但是 ~/tkvoice_release_0.3.12_0316_095057.tar 文件不会删除
 ```
 
 
 # 测试运行
 先登录到 41.2 的 Orin 板，进入目录：
 ```bash
-cd tkvoice_release_0.3.6_0313_170837
+cd tkvoice_release_0.3.12_0316_095057
 
 然后可用如下命令进行管理:
 # 启动服务
@@ -161,6 +161,6 @@ cd tkvoice_release_0.3.6_0313_170837
 ./tkvoice.sh status
 
 # 查看日志"
-tail -f /home/nvidia/tkvoice_release_0.3.6_0313_170837/tkvoice.log
+tail -f /home/nvidia/tkvoice_release_0.3.12_0316_095057/tkvoice.log
 
 ```
