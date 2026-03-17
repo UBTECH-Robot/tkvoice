@@ -55,7 +55,9 @@ class AudioPlayer:
         self.frames_per_buffer = frames_per_buffer
         # 待机时输出极低音量提示音，避免“完全静音”
         self.idle_tone_hz = 440.0
-        self.idle_tone_amplitude = 0.002 # 这个数值的表现是，第一次播放还是会有吞第一个字的情况，后续再播放没出现吞字情况，这个值的声音几乎听不到
+        self.idle_tone_amplitude = 0.005 # 这个数值的表现是，第一次播放还是会有吞第一个字的情况，后续再播放没出现吞字情况，这个值的声音几乎听不到
+        # 正常音频切块时长（秒）：块越小越容易被打断，但调度开销会略增加
+        self.play_chunk_seconds = 0.05
 
         # Map sample width/format to PyAudio format
         self.format = self._get_pyaudio_format(sample_width, audio_format)
@@ -213,7 +215,24 @@ class AudioPlayer:
             queue.put(audio_data)
 
     def play(self, audio_data: bytes):
-        self.try_put(self.get_audioid(), audio_data)
+        if not audio_data:
+            return
+
+        frame_size = self.channels * self.sample_width
+        if frame_size <= 0:
+            return
+
+        # 按小块入队，降低单次 write 的阻塞时长，提升切换/打断响应
+        chunk_frames = max(1, int(self.sample_rate * self.play_chunk_seconds))
+        chunk_bytes = chunk_frames * frame_size
+        audioid = self.get_audioid()
+
+        valid_length = len(audio_data) - (len(audio_data) % frame_size)
+        if valid_length <= 0:
+            return
+
+        for offset in range(0, valid_length, chunk_bytes):
+            self.try_put(audioid, audio_data[offset: offset + chunk_bytes])
 
     def _load_pcm(self, file_path: Path) -> bytes:
         file_path = Path(file_path)
