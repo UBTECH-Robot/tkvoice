@@ -1,7 +1,9 @@
 import threading
 import time
 import traceback
+from pathlib import Path
 import pyaudio
+import numpy as np
 from queue import Queue, Empty, Full
 from audio_service.log_config import setup_logger
 logging = setup_logger(__name__)
@@ -51,6 +53,9 @@ class AudioPlayer:
         self.channels = channels
         self.sample_width = sample_width
         self.frames_per_buffer = frames_per_buffer
+        # 待机时输出极低音量提示音，避免“完全静音”
+        self.idle_tone_hz = 440.0
+        self.idle_tone_amplitude = 0.002 # 这个数值的表现是，第一次播放还是会有吞第一个字的情况，后续再播放没出现吞字情况，这个值的声音几乎听不到
 
         # Map sample width/format to PyAudio format
         self.format = self._get_pyaudio_format(sample_width, audio_format)
@@ -125,7 +130,7 @@ class AudioPlayer:
 
     def _has_pending_audio(self, audioid: str) -> bool:
         """Check if there are pending audio chunks for the given audioid."""
-        if not audioid:
+        if audioid is None:
             return False
         with self.audio_queues_map_lock:
             queue = self.audio_queues_map.get(audioid)
@@ -210,20 +215,56 @@ class AudioPlayer:
     def play(self, audio_data: bytes):
         self.try_put(self.get_audioid(), audio_data)
 
-    def keep_playing_audio(self):
-        # 用 1 LSB 幅度的交替信号替代全零静音，防止 USB DAC 芯片的模拟输出级因检测到
-        # 全零信号而自动关断（全零静音无法阻止该电路，非零信号才能保持 DAC 处于活跃状态）
-        # 16-bit 下幅度 = 1/32768 ≈ 0.003%, 完全不可闻
-        n_samples = self.frames_per_buffer * self.channels
-        if self.sample_width == 2:
-            import struct
-            silence_chunk = b''.join(
-                struct.pack('<h', 1 if i % 2 == 0 else -1) for i in range(n_samples)
+    def _load_pcm(self, file_path: Path) -> bytes:
+        file_path = Path(file_path)
+        with file_path.open('rb') as pcm_file:
+            audio_data = pcm_file.read()
+
+        if not audio_data:
+            logging.warning(f"PCM文件为空，跳过播放: {file_path}")
+            return b''
+
+        frame_size = self.channels * self.sample_width
+        if frame_size > 0 and len(audio_data) % frame_size != 0:
+            valid_length = len(audio_data) - (len(audio_data) % frame_size)
+            logging.warning(
+                f"PCM文件长度不是完整帧大小的整数倍，将截断尾部残留字节: {file_path}, "
+                f"原始长度={len(audio_data)}, 截断后长度={valid_length}"
             )
-        elif self.sample_width == 1:
-            silence_chunk = bytes([1 if i % 2 == 0 else 255 for i in range(n_samples)])
-        else:
-            silence_chunk = bytes(n_samples * self.sample_width)
+            audio_data = audio_data[:valid_length]
+
+        return audio_data
+
+    def _build_idle_chunk(self) -> bytes:
+        """Generate a very low-volume idle tone chunk that is audible but unobtrusive."""
+        n_frames = self.frames_per_buffer
+        n_samples = n_frames * self.channels
+
+        if self.sample_width == 2:
+            peak = int(32767 * self.idle_tone_amplitude)
+            if peak <= 0:
+                peak = 1
+            t = np.arange(n_frames, dtype=np.float32) / float(self.sample_rate)
+            wave = (np.sin(2 * np.pi * self.idle_tone_hz * t) * peak).astype(np.int16)
+            if self.channels > 1:
+                wave = np.repeat(wave, self.channels)
+            return wave.tobytes()
+
+        if self.sample_width == 1:
+            peak = int(127 * self.idle_tone_amplitude)
+            if peak <= 0:
+                peak = 1
+            t = np.arange(n_frames, dtype=np.float32) / float(self.sample_rate)
+            wave = (128 + np.sin(2 * np.pi * self.idle_tone_hz * t) * peak).astype(np.uint8)
+            if self.channels > 1:
+                wave = np.repeat(wave, self.channels)
+            return wave.tobytes()
+
+        return bytes(n_samples * self.sample_width)
+
+    def keep_playing_audio(self):
+        # 使用极低音量待机音代替“完全静音”，保持设备活跃且可被人耳轻微感知
+        silence_chunk = self._build_idle_chunk()
 
         while not self.stop_event.is_set():
             if not self.playing_stream.is_active():
@@ -260,3 +301,51 @@ class AudioPlayer:
                 logging.error(f"播放音频时发生错误: {e}")
                 traceback.print_exc()
 
+def main(args=None):
+    audio_player = AudioPlayer(sample_rate=16000, channels=1, sample_width=2, frames_per_buffer=1024)
+    audio_files_dir = Path('audio_files')
+
+    def stop_handle():
+        logging.info("接收到终止信号，准备终止程序...")
+        audio_player.close()
+        logging.info("AudioPlayer已销毁，正在退出...")
+        
+    try:
+        if not audio_files_dir.exists():
+            logging.error(f"音频目录不存在: {audio_files_dir}")
+            return
+
+        pcm_files = sorted(audio_files_dir.glob('*.pcm'))
+        if not pcm_files:
+            logging.info(f"未找到可播放的PCM文件: {audio_files_dir}")
+            return
+
+        logging.info(f"开始按顺序播放PCM文件，共 {len(pcm_files)} 个: {audio_files_dir}")
+        for pcm_file in pcm_files:
+            time.sleep(3)
+            audio_data = audio_player._load_pcm(pcm_file)
+            if not audio_data:
+                continue
+
+            logging.info(f"开始播放PCM文件: {pcm_file.name}, 字节数: {len(audio_data)}")
+            audio_player.play(audio_data)
+            while audio_player.is_speaking():
+                time.sleep(0.3)
+
+    except KeyboardInterrupt:
+        logging.error("接收到 Ctrl+C，准备退出...")
+    finally:
+        stop_handle()
+
+if __name__ == '__main__':
+    main()
+
+# for development and testing, ref tk_audio_publisher.py to save .pcm files, then run the following command in terminal:
+# cd /home/nvidia/tkvoice/src/audio_service
+# python -m audio_service.utils
+
+# Or run compiled version with:
+# cd /home/nvidia/tkvoice/
+# colcon build --packages-select audio_message audio_service
+# source install/setup.bash
+# python -m audio_service.utils

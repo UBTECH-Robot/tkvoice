@@ -1,22 +1,21 @@
 #!/usr/bin/env python3
 
-from datetime import datetime
 import struct
+from pathlib import Path
 from socket import *
 import signal
-import os
 import threading
-import wave
 from queue import Queue, Empty
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Header
 from audio_message.msg import AudioFrame
+from audio_service.audio_file_saver import AudioFileSaverMixin
 from audio_service.socket_audio_provider import SocketAudioProvider
 import signal
 
-class SocketAudioPublisher(Node):
-    def __init__(self):        
+class SocketAudioPublisher(Node, AudioFileSaverMixin):
+    def __init__(self, sample_rate: int = 16000, channels: int = 1, sample_width: int = 2):        
         super().__init__('tk_audio_publisher')
         self.publisher_ = self.create_publisher(AudioFrame, 'audio_frames', 10)
         self.sentence_publisher_ = self.create_publisher(AudioFrame, 'audio_sentence_frames', 10)
@@ -26,7 +25,7 @@ class SocketAudioPublisher(Node):
         self.audio_provider = SocketAudioProvider('10.42.0.127', 9080)
         self.stop_event = threading.Event()
 
-        self.audio_files_dir = "audio_files"
+        self.audio_files_dir = str(Path('audio_files'))
 
         self.pcm_file = None
         self.wav_file = None
@@ -35,9 +34,7 @@ class SocketAudioPublisher(Node):
         self.stream = None
         
         # 音频参数
-        self.sample_rate = 16000
-        self.channels = 1
-        self.bit_depth = 16
+        self.set_audio_params(sample_rate=sample_rate, channels=channels, sample_width=sample_width)
         
         # 音频缓存
         self.audio_buffer = bytearray()
@@ -57,58 +54,6 @@ class SocketAudioPublisher(Node):
         self.receive_pub_thread = threading.Thread(target=self.keep_receiving_publish_audio)
         self.receive_pub_thread.start()    
         self.get_logger().info("AudioPublisher 节点成功启动")
-
-    def ensure_directories(self):
-        """确保音频文件目录存在"""
-        os.makedirs(self.audio_files_dir, exist_ok=True)
-
-    def clear_old_files(self):
-        """清理旧的音频文件"""
-        self.ensure_directories()
-
-        for file in os.listdir(self.audio_files_dir):
-            try:
-                os.remove(os.path.join(self.audio_files_dir, file))
-            except Exception as e:
-                self.get_logger().info(f"删除文件失败: {e}")
-
-    def get_new_name(self, dir_name):
-        """生成新的音频文件名"""
-        timestamp = datetime.now().strftime('%H%M%S%f')[:-3]  # 时分秒+毫秒（保留3位）
-        filename = os.path.join(dir_name, f"audio_{timestamp}")
-        self.pcm_file = f"{filename}.pcm"
-        self.wav_file = f"{filename}.wav"
-    
-    def save_wav_file(self, audio_data):
-        """保存音频数据为WAV文件"""
-        if not audio_data:
-            self.get_logger().info("没有音频数据可保存")
-            return
-        
-        self.get_new_name(self.audio_files_dir)
-        
-        try:
-            with wave.open(self.wav_file, 'wb') as wf:
-                wf.setnchannels(self.channels)
-                wf.setsampwidth(self.bit_depth // 8)
-                wf.setframerate(self.sample_rate)
-                wf.writeframes(audio_data)
-            self.get_logger().info(f"已转换为WAV格式: {self.wav_file}")
-        except Exception as e:
-            self.get_logger().info(f"保存WAV文件失败: {e}")
-
-    def save_pcm_file(self, audio_data):
-        """保存音频数据为PCM文件"""
-        if not audio_data:
-            self.get_logger().info("没有音频数据可保存")
-            return        
-        
-        try:
-            with open(self.pcm_file, 'ab') as pcm_file:
-                pcm_file.write(audio_data)
-            self.get_logger().info(f"已保存PCM文件: {self.pcm_file}")
-        except Exception as e:
-            self.get_logger().info(f"保存PCM文件失败: {e}")
 
     def keep_saving_wav_pcm_file(self):
         while not self.stop_event.is_set():

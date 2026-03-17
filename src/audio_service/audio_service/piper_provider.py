@@ -7,10 +7,12 @@ import os
 os.environ["TORCHDYNAMO_DISABLE"] = "1"
 os.environ["DISABLE_TORCH_COMPILE"] = "1"
 import time
+from pathlib import Path
 import onnxruntime as ort
 ort.set_default_logger_severity(4)
 import pyaudio
 from piper import PiperVoice, SynthesisConfig
+from audio_service.audio_file_saver import AudioFileSaverMixin
 from audio_service.utils import AudioPlayer
 testpint = print
 
@@ -18,7 +20,7 @@ from audio_service.log_config import setup_logger
 logging = setup_logger(__name__)
 testpint = logging.info
 
-class PiperProvider:
+class PiperProvider(AudioFileSaverMixin):
     def __init__(self, model_path=None, init_player=False):
         MODEL_DIR = os.environ.get("MODEL_DIR", "/home/nvidia/")
         tts_model_path = os.path.join(MODEL_DIR, "piper_voices/zh/zh_CN-huayan-medium.onnx")
@@ -46,11 +48,17 @@ class PiperProvider:
         )
 
         self.piper_instance = None
-        self.sample_rate = 21000
+        self.audio_files_dir = str(Path('audio_files'))
+        self.pcm_file = None
+        self.wav_file = None
+        self.logger = logging
+        self.set_audio_params(sample_rate=21000, channels=1, sample_width=2)
         
         start_time = time.time()
         try:
             self._load_model()
+            sample_rate, channels, sample_width = self.get_audio_param()
+            self.set_audio_params(sample_rate=sample_rate, channels=channels, sample_width=sample_width)
             elapsed = time.time() - start_time
             testpint(f"[TTS] Piper 模型加载完成，用时 {elapsed:.2f} 秒")
         except Exception as e:
@@ -65,11 +73,10 @@ class PiperProvider:
             self.pyaudio_instance = pyaudio.PyAudio()
             device_info = self.pyaudio_instance.get_default_output_device_info()
 
-            sample_rate, channels, sample_width = self.get_audio_param()  # 获取音频参数，确保与 Piper 模型一致
             self.audio_stream = self.pyaudio_instance.open(
                 format=pyaudio.paInt16,
-                channels=channels,
-                rate=sample_rate,
+                channels=self.channels,
+                rate=self.sample_rate,
                 output=True,
                 output_device_index=device_info['index']
             )
@@ -133,14 +140,21 @@ def main(args=None):
     audio_player = None
     try:
         tts_service = PiperProvider(init_player=True)
-        audio_player = AudioPlayer()
-        text = "你你需要我给你讲个笑话让你放松一下吗,或者喝一杯咖啡怎么样"
-        # text = "今天的天气阳光明媚"
+        sample_rate, channels, sample_width = tts_service.sample_rate, tts_service.channels, tts_service.sample_width
+        audio_player = AudioPlayer(sample_rate=sample_rate, channels=channels, sample_width=sample_width)
+        text = "你需要我给你讲个笑话让你放松一下吗,或者喝一杯咖啡怎么样"
         wavs = tts_service.tts(text)
-        # for wav in wavs:
-        # tts_service.play(wavs)
+        tts_service.save_wav_file(
+            wavs,
+            sample_rate=sample_rate,
+            channels=channels,
+            sample_width=sample_width,
+        )
+        tts_service.save_pcm_file(wavs)
         audio_player.play(wavs)
-        time.sleep(6)
+        
+        while tts_service.is_speaking():
+            time.sleep(1)
         
     except KeyboardInterrupt:
         testpint("Ctrl C stop the programe, exit.")
