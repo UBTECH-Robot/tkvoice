@@ -42,7 +42,6 @@ class AudioProcess(Node):
         # Note: If TTS output format changes at runtime, AudioPlayer would need to be reinitialized.
         # Current implementation assumes format is fixed throughout the node's lifetime.
         self.audio_player = AudioPlayer()
-        self.current_audio_params = None  # To track current audio format
         self.llm_client = LLMClient()
         self.tts_service = AzureSpeechAdapter()
         
@@ -283,24 +282,34 @@ class AudioProcess(Node):
             self.get_logger().error(f"Error closing LLM client: {e}")
         
         # Wait for threads to finish with timeout to avoid hanging
+        # Check if we're in the NLP thread itself (can happen during signal handling)
         if self.question_to_answer_thread and self.question_to_answer_thread.is_alive():
-            self.get_logger().info("Waiting for NLP thread to finish...")
-            self.question_to_answer_thread.join(timeout=3)
-            if self.question_to_answer_thread.is_alive():
-                self.get_logger().warning("NLP thread did not finish within 3 seconds")
-                
+            if threading.current_thread() == self.question_to_answer_thread:
+                self.get_logger().warning("Cannot join NLP thread from within itself, skipping join")
+            else:
+                self.get_logger().info("Waiting for NLP thread to finish...")
+                self.question_to_answer_thread.join(timeout=3)
+                if self.question_to_answer_thread.is_alive():
+                    self.get_logger().warning("NLP thread did not finish within 3 seconds")
+
         for thread in self.tts_threads:
             if thread and thread.is_alive():
-                self.get_logger().info(f"Waiting for {thread.name} thread to finish...")
-                thread.join(timeout=2)
-                if thread.is_alive():
-                    self.get_logger().warning(f"{thread.name} thread did not finish within 2 seconds")
+                if threading.current_thread() == thread:
+                    self.get_logger().warning(f"Cannot join {thread.name} thread from within itself, skipping join")
+                else:
+                    self.get_logger().info(f"Waiting for {thread.name} thread to finish...")
+                    thread.join(timeout=2)
+                    if thread.is_alive():
+                        self.get_logger().warning(f"{thread.name} thread did not finish within 2 seconds")
 
         if self.audio_playback_thread and self.audio_playback_thread.is_alive():
-            self.get_logger().info("Waiting for PLAYBACK thread to finish...")
-            self.audio_playback_thread.join(timeout=2)
-            if self.audio_playback_thread.is_alive():
-                self.get_logger().warning("PLAYBACK thread did not finish within 2 seconds")
+            if threading.current_thread() == self.audio_playback_thread:
+                self.get_logger().warning("Cannot join PLAYBACK thread from within itself, skipping join")
+            else:
+                self.get_logger().info("Waiting for PLAYBACK thread to finish...")
+                self.audio_playback_thread.join(timeout=2)
+                if self.audio_playback_thread.is_alive():
+                    self.get_logger().warning("PLAYBACK thread did not finish within 2 seconds")
         
         # Cleanup audio player
         try:
@@ -322,7 +331,9 @@ def main(args=None):
             return
         stop_called = True
 
+        import traceback
         print("Received termination signal, preparing to terminate program...")
+        traceback.print_stack()
 
         tk_audio_process.close()
         tk_audio_process.destroy_node()
@@ -343,6 +354,7 @@ if __name__ == '__main__':
     main()
 
 
+# for development and testing:
 # rm -rf build install log && colcon build --packages-select audio_message audio_service
 # source install/setup.bash
 # ros2 launch audio_service asr_llm_tts_process_launch.py

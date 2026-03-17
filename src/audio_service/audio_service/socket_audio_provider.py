@@ -57,7 +57,7 @@ class SocketAudioProvider(SocketConnector):
 
 def main(args=None):
     audio_provider = SocketAudioProvider('10.42.0.127', 9080)
-    audio_player = AudioPlayer()
+    audio_player = AudioPlayer(sample_rate=16000, channels=1, sample_width=2, frames_per_buffer=1024)
     audio_buffer = bytearray()
 
     def stop_handle():
@@ -94,6 +94,7 @@ def main(args=None):
 if __name__ == '__main__':
     main()
 
-# cd /home/nvidia/voicelocal/tkvoice_release/src/audio_service
+# for development and testing, run the following command in terminal:
+# cd /home/nvidia/tkvoice/src/audio_service
 # python -m audio_service.socket_audio_provider
 
