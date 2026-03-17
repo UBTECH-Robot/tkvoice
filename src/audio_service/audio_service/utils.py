@@ -26,7 +26,7 @@ class AudioPlayer:
                  channels: int = 1,
                  sample_width: int = 2,
                  audio_format: int = None,
-                 frames_per_buffer: int = 1024):
+                 frames_per_buffer: int = 256):
         """
         Initialize AudioPlayer with configurable PCM audio format parameters.
 
@@ -36,7 +36,7 @@ class AudioPlayer:
             sample_width: Sample width in bytes, 1=8bit, 2=16bit, 4=32bit (default: 2 for 16-bit PCM)
             audio_format: PyAudio format constant (e.g., pyaudio.paInt16, pyaudio.paFloat32).
                           If None, inferred from sample_width.
-            frames_per_buffer: Buffer size in frames (default: 1024)
+            frames_per_buffer: Buffer size in frames (default: 256)
         """
         wait_for_audio_ready()
         self.audio = pyaudio.PyAudio()
@@ -211,7 +211,21 @@ class AudioPlayer:
         self.try_put(self.get_audioid(), audio_data)
 
     def keep_playing_audio(self):
-        while not self.stop_event.is_set():            
+        # 用 1 LSB 幅度的交替信号替代全零静音，防止 USB DAC 芯片的模拟输出级因检测到
+        # 全零信号而自动关断（全零静音无法阻止该电路，非零信号才能保持 DAC 处于活跃状态）
+        # 16-bit 下幅度 = 1/32768 ≈ 0.003%, 完全不可闻
+        n_samples = self.frames_per_buffer * self.channels
+        if self.sample_width == 2:
+            import struct
+            silence_chunk = b''.join(
+                struct.pack('<h', 1 if i % 2 == 0 else -1) for i in range(n_samples)
+            )
+        elif self.sample_width == 1:
+            silence_chunk = bytes([1 if i % 2 == 0 else 255 for i in range(n_samples)])
+        else:
+            silence_chunk = bytes(n_samples * self.sample_width)
+
+        while not self.stop_event.is_set():
             if not self.playing_stream.is_active():
                 self.playing_stream.start_stream()
                 continue
@@ -219,25 +233,30 @@ class AudioPlayer:
             try:
                 q_text = self.get_audioid()
                 if q_text not in self.audio_queues_map:
-                    time.sleep(0.01)
+                    with self.stream_lock:
+                        self.playing_stream.write(silence_chunk)
                     continue
                 queue = self.audio_queues_map.get(q_text)
                 if queue is None:
-                    time.sleep(0.01)
+                    with self.stream_lock:
+                        self.playing_stream.write(silence_chunk)
                     continue
                 audio_data = queue.get_nowait()
             except Empty:
-                time.sleep(0.01)
+                with self.stream_lock:
+                    self.playing_stream.write(silence_chunk)
                 continue
 
             try:
                 if audio_data is None:
-                    time.sleep(0.01)
+                    with self.stream_lock:
+                        self.playing_stream.write(silence_chunk)
                     break
                 self._mark_audio_playing(audio_data)
                 with self.stream_lock:
                     self.playing_stream.write(audio_data)
 
             except Exception as e:
-                logging.info(f"播放音频时发生错误: {e}")
+                logging.error(f"播放音频时发生错误: {e}")
+                traceback.print_exc()
 
