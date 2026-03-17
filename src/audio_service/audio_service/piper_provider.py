@@ -155,6 +155,7 @@ def main(args=None):
 if __name__ == '__main__':
     main()
 
+# for development and testing, run the following command in terminal:
 # cd /home/nvidia/tkvoice/src/audio_service
 # win10 powershell:
 # $env:MODEL_DIR="E:\\space-work\\source-code\\tiangong\\aigc\\tkvoice\\res\\"; python -m audio_service.piper_provider
