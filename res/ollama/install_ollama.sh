@@ -76,12 +76,12 @@ BASE_URL="https://github.com/ollama/ollama/releases/download/v0.17.7/ollama-linu
 JETPACK6_URL="https://github.com/ollama/ollama/releases/download/v0.17.7/ollama-linux-arm64-jetpack6.tar.zst"
 
 if [ ! -f "$BASE_TGZ" ]; then
-    if ! tar --zstd -tf "${BASE_DIR}.tar.zst" | grep -q "/res/ollama/${BASE_TGZ}"; then
-        echo "[WARN] 发布包中未找到 /res/ollama/${BASE_TGZ}，尝试下载..."
+    if ! tar -tf "${BASE_DIR}.tar" | grep -q "/res/ollama/${BASE_TGZ}"; then
+        echo "[WARN] 发布包 ${BASE_DIR}.tar 中未找到 /res/ollama/${BASE_TGZ}，尝试下载..."
         download_file "$BASE_URL" "$BASE_TGZ"
     else
         echo "📦 从发布包中提取Ollama基础包 ${BASE_TGZ}..."
-        tar -C "${PARENT_DIR}" --zstd -xvf "${BASE_DIR}.tar.zst" \
+        tar -C "${PARENT_DIR}" -xvf "${BASE_DIR}.tar" \
             "${RELEASE_DIR}/res/ollama/${BASE_TGZ}"
         # tar --delete -f "${BASE_DIR}.tar" "${RELEASE_DIR}/res/ollama/${BASE_TGZ}"
     fi
@@ -99,12 +99,12 @@ fi
 
 
 if [ ! -f "$JETPACK6_TGZ" ]; then
-    if ! tar --zstd -tf "${BASE_DIR}.tar.zst" | grep -q "/res/ollama/${JETPACK6_TGZ}"; then
-        echo "[WARN] 发布包中未找到 /res/ollama/${JETPACK6_TGZ}，尝试下载..."
+    if ! tar -tf "${BASE_DIR}.tar" | grep -q "/res/ollama/${JETPACK6_TGZ}"; then
+        echo "[WARN] 发布包 ${BASE_DIR}.tar 中未找到 /res/ollama/${JETPACK6_TGZ}，尝试下载..."
         download_file "$JETPACK6_URL" "$JETPACK6_TGZ"
     else
         echo "📦 从发布包中提取Ollama JetPack6包 ${JETPACK6_TGZ}..."
-        tar -C "${PARENT_DIR}" --zstd -xvf "${BASE_DIR}.tar.zst" \
+        tar -C "${PARENT_DIR}" -xvf "${BASE_DIR}.tar" \
             "${RELEASE_DIR}/res/ollama/${JETPACK6_TGZ}"
         # tar --delete -f "${BASE_DIR}.tar" "${RELEASE_DIR}/res/ollama/${JETPACK6_TGZ}"
     fi
