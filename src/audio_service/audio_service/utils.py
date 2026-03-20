@@ -55,9 +55,9 @@ class AudioPlayer:
         self.frames_per_buffer = frames_per_buffer
         # 待机时输出极低音量提示音，避免“完全静音”
         self.idle_tone_hz = 440.0
-        self.idle_tone_amplitude = 0.005 # 这个数值的表现是，第一次播放还是会有吞第一个字的情况，后续再播放没出现吞字情况，这个值的声音几乎听不到
+        self.idle_tone_amplitude = 0.0025 # 这个数值的表现是，第一次播放还是会有吞第一个字的情况，后续再播放没出现吞字情况，这个值的声音几乎听不到
         # 正常音频切块时长（秒）：块越小越容易被打断，但调度开销会略增加
-        self.play_chunk_seconds = 0.05
+        self.play_chunk_seconds = 0.04
 
         # Map sample width/format to PyAudio format
         self.format = self._get_pyaudio_format(sample_width, audio_format)
@@ -190,6 +190,14 @@ class AudioPlayer:
                 except KeyError:
                     pass
 
+        # 打断后不要长时间沿用旧请求累计的播放截止时间，
+        # 否则 is_speaking() 会继续返回 True，导致新语音输入被误忽略。
+        # 这里不直接清零，保留一个很小的硬件排空保护窗，避免误判为立刻静默。
+        now = time.monotonic()
+        interrupt_grace = min(0.12, max(0.02, self.output_latency_seconds))
+        with self.playback_state_lock:
+            self.playback_deadline = min(self.playback_deadline, now + interrupt_grace)
+
     def close(self):
         self.stop_event.set()
         self.playing_thread.join(timeout=2)
@@ -214,7 +222,7 @@ class AudioPlayer:
             queue.get_nowait()  # 弹出最旧的一条
             queue.put(audio_data)
 
-    def play(self, audio_data: bytes):
+    def play(self, audio_data: bytes, audioid: str = None):
         if not audio_data:
             return
 
@@ -225,14 +233,14 @@ class AudioPlayer:
         # 按小块入队，降低单次 write 的阻塞时长，提升切换/打断响应
         chunk_frames = max(1, int(self.sample_rate * self.play_chunk_seconds))
         chunk_bytes = chunk_frames * frame_size
-        audioid = self.get_audioid()
+        target_audioid = audioid if audioid is not None else self.get_audioid()
 
         valid_length = len(audio_data) - (len(audio_data) % frame_size)
         if valid_length <= 0:
             return
 
         for offset in range(0, valid_length, chunk_bytes):
-            self.try_put(audioid, audio_data[offset: offset + chunk_bytes])
+            self.try_put(target_audioid, audio_data[offset: offset + chunk_bytes])
 
     def _load_pcm(self, file_path: Path) -> bytes:
         file_path = Path(file_path)

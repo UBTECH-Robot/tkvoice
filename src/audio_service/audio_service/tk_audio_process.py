@@ -264,7 +264,7 @@ class AudioProcess(Node):
                         break
 
                     ready_text, ready_pcm = request_segments.pop(next_sequence)
-                    self.audio_player.try_put(request_id, ready_pcm)
+                    self.audio_player.play(ready_pcm, audioid=request_id)
                     self.get_logger().info(f'[{threading.current_thread().name}] [{ready_text}] Queued for playback - {datetime.now().strftime("%H:%M:%S")}')
                     next_sequence += 1
                     next_sequence_by_request[request_id] = next_sequence

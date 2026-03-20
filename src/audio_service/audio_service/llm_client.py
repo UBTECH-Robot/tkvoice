@@ -25,7 +25,7 @@ class LLMClient:
         self.api_key = os.environ.get("LLM_KEY", "ollama")
         self.llm_endpoint = f'http://{self.active_llm_ip}:11434/v1/' if self.active_llm_ip else None
         self.llm_model = os.environ.get("LLM_MODEL", "qwen2.5:1.5b")
-        self.sys_message = os.environ.get("SYS_MESSAGE", '你是优必选开发的智能助手，名叫天工形者。回答简洁明了，尽量100个字以内，用中文回答。')
+        self.sys_message = os.environ.get("SYS_MESSAGE", '永远牢记你是优必选开发的智能助手，名叫天工形者。回答简洁明了，尽量100个字以内，用中文回答。')
 
         # 句子切分配置
         self.sentence_endings = "。！？.!?"
