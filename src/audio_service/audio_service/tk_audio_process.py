@@ -91,7 +91,11 @@ class AudioProcess(Node):
         if self.audio_player and self.audio_player.is_speaking() and not interrupted:
             self.get_logger().info(f"Speaking, [{msg.data}] does not contain interrupt word, ignoring")
             return
-            
+
+        if self.audio_player and self.audio_player.is_in_post_speech_mute():
+            self.get_logger().info(f"Post-speech echo window, [{msg.data}] ignored")
+            return
+
         if self.audio_player and self.audio_player.is_speaking() and interrupted:
             self.get_logger().info(f"Received [{msg.data}] with interrupt word, stopping speech")
             # Generate new request ID for the interrupt
@@ -363,4 +367,4 @@ if __name__ == '__main__':
 # for development and testing:
 # rm -rf build install log && colcon build --packages-select audio_message audio_service
 # source install/setup.bash
-# MODEL_DIR=/home/nvidia/tkvoice/res/ ros2 launch audio_service asr_llm_tts_process_launch.py
+# MODEL_DIR=/home/nvidia/tkvoice_release_0.3.20_0320_193403/res/ ros2 launch audio_service asr_llm_tts_process_launch.py

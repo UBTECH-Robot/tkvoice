@@ -1,10 +1,4 @@
-# import subprocess
-# import httpx
 import os
-# import json
-import multiprocessing
-import queue
-# import time
 import urllib.request
 import urllib.error
 from datetime import datetime
@@ -24,18 +18,20 @@ class LLMClient:
 
         self.api_key = os.environ.get("LLM_KEY", "ollama")
         self.llm_endpoint = f'http://{self.active_llm_ip}:11434/v1/' if self.active_llm_ip else None
+        self.primary_model = os.environ.get("PRIMARY_MODEL", "qwen2.5:3b")
         self.llm_model = os.environ.get("LLM_MODEL", "qwen2.5:1.5b")
-        self.sys_message = os.environ.get("SYS_MESSAGE", '永远牢记你是优必选开发的智能助手，名叫天工形者。回答简洁明了，尽量100个字以内，用中文回答。')
+        # 检查 primary_model 是否可用，可用则优先使用
+        self._resolve_active_model()
+
+        self.sys_message = os.environ.get("SYS_MESSAGE", '永远牢记你是优必选开发的智能助手，名叫天工形者。回答简洁明了，尽量30到100个字之间，用中文回答。')
 
         # 句子切分配置
         self.sentence_endings = "。！？.!?"
         self.soft_endings = "，、;；,"
         self.max_len = 25
 
-        self.mp_context = multiprocessing.get_context("spawn")
-        # 控制字段
-        self.process = None
-        self.queue = None
+        self._current_stream = None   # 当前流式响应，用于中断
+        self._client = self._build_client()
 
         self.set_system_message(self.sys_message)
 
@@ -67,6 +63,33 @@ class LLMClient:
         logging.warning("[LLM] 未找到可用的 Ollama 服务 (192.168.41.3, 192.168.41.2)")
         return None
 
+    def _resolve_active_model(self, timeout=5):
+        """
+        查询 Ollama /api/tags 接口，若 primary_model 已拉取则将其设为当前使用的模型，
+        否则保持使用 llm_model 作为降级选项。
+        """
+        if not self.active_llm_ip:
+            logging.warning("[LLM] 无可用 Ollama 服务，跳过模型检测，使用降级模型: %s", self.llm_model)
+            return
+
+        url = f"http://{self.active_llm_ip}:11434/api/tags"
+        try:
+            import json
+            req = urllib.request.Request(url, method='GET')
+            with urllib.request.urlopen(req, timeout=timeout) as response:
+                data = json.loads(response.read().decode('utf-8'))
+            available = {m.get('name', '') for m in data.get('models', [])}
+            if self.primary_model in available:
+                self.llm_model = self.primary_model
+                logging.info("[LLM] primary_model [%s] 可用，将使用该模型", self.primary_model)
+            else:
+                logging.info(
+                    "[LLM] primary_model [%s] 未找到（已有: %s），降级使用 [%s]",
+                    self.primary_model, available, self.llm_model
+                )
+        except Exception as e:
+            logging.warning("[LLM] 查询 Ollama 模型列表失败，降级使用 [%s]: %s", self.llm_model, e)
+
     def set_system_message(self, content):
         self.system_message = {"role": "system", "content": content}
 
@@ -81,99 +104,77 @@ class LLMClient:
         messages.append({"role": "user", "content": user_input})
         return messages
 
-    @staticmethod
-    def _stream_worker(base_url, model, messages_payload, queue, api_key):
-        """
-        子进程执行 HTTP 请求，将 text 内容直接放入队列。
-        主进程再负责拼接句子和分段逻辑。
-        """
-        try:
-            logging.info(f'[子进程] 开始请求 {base_url}')
-            with OpenAI(api_key=api_key, base_url=base_url) as client:
-                completion = client.chat.completions.create(
-                    model=model,
-                    messages=messages_payload,
-                    stream=True,
-                    stream_options={"include_usage": True}
-                )
-                logging.info(f'[子进程] 请求已发起，等待输出')
-                for chunk in completion:
-                    if chunk.choices:
-                        content = chunk.choices[0].delta.content or ""
-                        queue.put(content)
-                    elif chunk.usage:
-                        logging.debug(f"[子进程] 总计 Tokens: {chunk.usage.total_tokens}")
-
-        except Exception as e:
-            logging.info(f'[子进程] 出错: {e}', exc_info=True)
-        finally:
-            queue.put(None)  # 表示结束
-            logging.debug("[子进程] 数据发送完成，等待主进程处理。")
+    def _build_client(self) -> 'OpenAI | None':
+        """创建 OpenAI 客户端（指向本地 Ollama）。"""
+        if not self.llm_endpoint:
+            return None
+        return OpenAI(api_key=self.api_key, base_url=self.llm_endpoint)
 
     def stream_sentence(self, user_input):
-        """在子进程发起请求并通过Queue流式返回结果（主进程负责拼句）"""
-        # 若存在上一个子进程，则先终止
+        """直接在 NLP 线程内流式请求 LLM，通过关闭 stream 实现中断。"""
+        # 关闭上一次未完成的流式请求
         self.set_interrupted(True)
 
-        if not self.llm_endpoint:
+        if not self.llm_endpoint or self._client is None:
             logging.error("[NLP] 无可用的 LLM 服务，无法处理请求")
             yield "抱歉，当前无法连接到语言模型服务。"
             return
 
         messages_payload = self.get_messages_payload(user_input)
-        q = self.mp_context.Queue()
-        p = self.mp_context.Process(
-            target=self._stream_worker,
-            args=(self.llm_endpoint, self.llm_model, messages_payload, q, self.api_key),
-            daemon=True,
-        )
-        self.process = p
-        self.queue = q
-        p.start()
-        logging.info(f'[NLP] Started subprocess PID={p.pid}, streaming output for [{user_input}]')
-
         assistant_response = ""
         buffer = ""
+        stream = None
 
-        while True:
-            try:
-                chunk = q.get(timeout=0.5)
-                if chunk is None:
-                    logging.debug("[NLP] Received None from queue, stream complete")
-                    break  # 子进程结束
-                assistant_response += chunk
-                buffer += chunk
+        try:
+            stream = self._client.chat.completions.create(
+                model=self.llm_model,
+                messages=messages_payload,
+                stream=True,
+                stream_options={"include_usage": True}
+            )
+            self._current_stream = stream
+            logging.info(f'[NLP] 开始流式请求, user=[{user_input}]')
 
-                # 句号断句
-                while any(punc in buffer for punc in self.sentence_endings):
-                    idx = min(
-                        [buffer.find(punc) for punc in self.sentence_endings if punc in buffer]
-                    )
-                    sentence = buffer[: idx + 1].strip()
-                    logging.info(f"[NLP] Stream output sentence: {sentence}")
-                    yield sentence
-                    buffer = buffer[idx + 1:]
+            for chunk in stream:
+                if chunk.choices:
+                    content = chunk.choices[0].delta.content or ""
+                    assistant_response += content
+                    buffer += content
 
-                # 软分割（超过 max_len）
-                if len(buffer) >= self.max_len:
-                    for punc in self.soft_endings:
-                        if punc in buffer:
-                            idx = buffer.find(punc)
-                            sentence = buffer[: idx + 1].strip()
-                            logging.info(f"[NLP] Stream output sentence (soft split): {sentence}")
-                            yield sentence
-                            buffer = buffer[idx + 1:]
-                            break
+                    # 句号断句
+                    while any(punc in buffer for punc in self.sentence_endings):
+                        idx = min(
+                            [buffer.find(punc) for punc in self.sentence_endings if punc in buffer]
+                        )
+                        sentence = buffer[: idx + 1].strip()
+                        logging.info(f"[NLP] Stream output sentence: {sentence}")
+                        yield sentence
+                        buffer = buffer[idx + 1:]
 
-            except queue.Empty:
-                if not p.is_alive():
-                    logging.debug("[NLP] Subprocess ended, stream output complete")
-                    break
-                continue
-            except KeyboardInterrupt:
-                logging.info("[NLP] Caught KeyboardInterrupt, terminating subprocess")
-                self.set_interrupted(True)
-                break
+                    # 软分割（超过 max_len）
+                    if len(buffer) >= self.max_len:
+                        for punc in self.soft_endings:
+                            if punc in buffer:
+                                idx = buffer.find(punc)
+                                sentence = buffer[: idx + 1].strip()
+                                logging.info(f"[NLP] Stream output sentence (soft split): {sentence}")
+                                yield sentence
+                                buffer = buffer[idx + 1:]
+                                break
+
+                elif chunk.usage:
+                    logging.debug(f"[NLP] 总计 Tokens: {chunk.usage.total_tokens}")
+
+        except Exception as e:
+            logging.info(f'[NLP] 流式请求中断: {e}')
+            return
+        finally:
+            self._current_stream = None
+            if stream is not None:
+                try:
+                    stream.close()
+                except Exception:
+                    pass
 
         # 若还有残留的文本
         if buffer.strip():
@@ -184,34 +185,27 @@ class LLMClient:
         # 记录历史
         self.add_message("user", user_input)
         self.add_message("assistant", assistant_response)
-
-        # 确保子进程退出
-        if p.is_alive():
-            p.join(timeout=1)
-        if p.exitcode is not None:
-            logging.info(f'[NLP] Question [{user_input}] completed, exitcode={p.exitcode}.')
+        logging.info(f'[NLP] Question [{user_input}] completed.')
 
     def set_interrupted(self, interrupted=True):
-        """终止子进程"""
+        """关闭当前流式响应，使 NLP 线程的迭代立即退出。"""
         if interrupted:
-            process = getattr(self, "process", None)
-            stream_queue = getattr(self, "queue", None)
-        
-            if process is not None and process.is_alive():
-                logging.debug(f"[主进程] 强制结束子进程 PID={process.pid}")
-                process.terminate()
-                process.join(timeout=1)
-            if stream_queue is not None:
+            stream = self._current_stream
+            self._current_stream = None
+            if stream is not None:
                 try:
-                    stream_queue.close()
-                    stream_queue.join_thread()
+                    stream.close()
                 except Exception:
                     pass
-            self.process = None
-            self.queue = None
 
     def close(self):
         self.set_interrupted(True)
+        if self._client is not None:
+            try:
+                self._client.close()
+            except Exception:
+                pass
+            self._client = None
 
 def main():
     client = LLMClient()

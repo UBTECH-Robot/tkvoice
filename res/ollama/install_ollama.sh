@@ -150,6 +150,7 @@ StandardError=append:/var/log/ollama.log
 Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 Environment="LD_LIBRARY_PATH=/usr/lib/ollama/cuda_jetpack6:/usr/local/cuda/lib64:/usr/lib"
 Environment="OLLAMA_HOST=0.0.0.0:11434"
+Environment="OLLAMA_CONTEXT_LENGTH=1024"
 
 [Install]
 WantedBy=multi-user.target
@@ -174,23 +175,26 @@ for i in {1..10}; do
     sleep 1
 done
 
-sudo chmod +x import_ollama_model.sh
-sudo ./import_ollama_model.sh qwen2.5_1.5b.tar.gz "${PARENT_DIR}" "${RELEASE_DIR}"
+# 封装：确保指定模型已在 Ollama 中可用，不存在则重试下载
+# 用法: ensure_ollama_model <model_tag>
+# 示例: ensure_ollama_model "qwen2.5:1.5b"
+ensure_ollama_model() {
+    local MODEL="$1"
+    local MAX_RETRIES=3
+    local RETRY_DELAY=5
 
-if curl -fs http://127.0.0.1:11434/api/tags | grep -q '"qwen2.5:1.5b"'; then
-    echo "✅ 模型 qwen2.5:1.5b 导入成功。"
-else
-    echo "⚠️ 模型 qwen2.5:1.5b 不存在，现准备下载..."
+    if curl -fs http://127.0.0.1:11434/api/tags | grep -q "\"${MODEL}\""; then
+        echo "✅ 模型 ${MODEL} 已存在。"
+        return 0
+    fi
 
-    MAX_RETRIES=3
-    RETRY_DELAY=5  # 每次重试间隔秒数
-    attempt=1
-
+    echo "⚠️ 模型 ${MODEL} 不存在，现准备下载..."
+    local attempt=1
     while (( attempt <= MAX_RETRIES )); do
         echo "[INFO] 第 ${attempt}/${MAX_RETRIES} 次尝试下载模型..."
-        if ollama pull qwen2.5:1.5b; then
-            echo "✅ 模型 qwen2.5:1.5b 下载完成。"
-            break
+        if ollama pull "${MODEL}"; then
+            echo "✅ 模型 ${MODEL} 下载完成。"
+            return 0
         else
             echo "⚠️ ollama pull 失败（第 ${attempt} 次）。"
             if (( attempt < MAX_RETRIES )); then
@@ -201,13 +205,21 @@ else
         ((attempt++))
     done
 
-    # 检查最终是否成功
-    if (( attempt > MAX_RETRIES )); then
-        echo "❌ 模型下载失败，请检查网络或稍后手动执行：ollama pull qwen2.5:1.5b"
-        exit 1
-    fi
-fi
+    echo "❌ 模型 ${MODEL} 下载失败，请检查网络或稍后手动执行：ollama pull ${MODEL}"
+    return 1
+}
 
+echo "[11/11] 导入并确认模型..."
+sudo chmod +x import_ollama_model.sh
+
+# 优先尝试联网下载 3b，成功则跳过 1.5b 离线导入
+# if ensure_ollama_model "qwen2.5:3b"; then
+#     echo "✅ 模型 qwen2.5:3b 已就绪，跳过 1.5b 离线导入。"
+# else
+#     echo "⚠️ qwen2.5:3b 不可用，导入离线 1.5b 作为保底..."
+sudo ./import_ollama_model.sh qwen2.5_1.5b.tar.gz "${PARENT_DIR}" "${RELEASE_DIR}"
+ensure_ollama_model "qwen2.5:1.5b" || { echo "❌ 1.5b 也无法获取，安装失败。"; exit 1; }
+# fi
 
 echo "💡 查看 Ollama 日志："
 echo "tail -n 100 -f /var/log/ollama.log"

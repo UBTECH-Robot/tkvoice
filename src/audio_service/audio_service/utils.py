@@ -68,6 +68,10 @@ class AudioPlayer:
         self.stop_event = threading.Event()
         self.playback_state_lock = threading.Lock()
         self.playback_deadline = 0.0
+        # 播音结束后的额外静默窗口（秒），用于屏蔽回声在管道中的传播延迟：
+        # mic → socket → VAD → FunASR识别 → topic发布，合计约 1~2s
+        self.post_speaking_mute_seconds = 2.0
+        self.post_speech_mute_deadline = 0.0
         self.output_latency_seconds = self._get_output_latency_seconds()
 
         self.playing_thread = threading.Thread(target=self.keep_playing_audio, daemon=True)
@@ -84,6 +88,19 @@ class AudioPlayer:
         # 2. Check if audio is still being played from hardware buffer
         with self.playback_state_lock:
             return time.monotonic() < self.playback_deadline
+
+    def is_in_post_speech_mute(self) -> bool:
+        """Check if we are in the post-speech echo suppression window.
+
+        After TTS finishes playing, the speaker echo travels through:
+        mic → socket → VAD buffer → FunASR (0.5~1s) → topic publish.
+        During this window the ASR result is echo, not real user speech.
+        This returns True only after is_speaking() is already False.
+        """
+        if self.is_speaking():
+            return False
+        with self.playback_state_lock:
+            return time.monotonic() < self.post_speech_mute_deadline
     
     def set_audioid(self, text: str):
         with self.audioid_lock:
@@ -147,10 +164,15 @@ class AudioPlayer:
 
         chunk_duration = len(audio_data) / bytes_per_second
         with self.playback_state_lock:
-            # 如果当前没有在播放，从当前时间开始
-            # 如果正在播放，从上一个截止时间继续累加
-            start_time = max(time.monotonic(), self.playback_deadline)
-            self.playback_deadline = start_time + chunk_duration + self.output_latency_seconds
+            now = time.monotonic()
+            if now >= self.playback_deadline:
+                # 没有正在播放的音频，从当前时间开始，计一次硬件输出延迟
+                self.playback_deadline = now + chunk_duration + self.output_latency_seconds
+            else:
+                # 音频已在播放管道中，只追加本块时长，不重复累加硬件延迟
+                self.playback_deadline += chunk_duration
+            # 每次推送音频块都同步更新回声静默窗口截止时间
+            self.post_speech_mute_deadline = self.playback_deadline + self.post_speaking_mute_seconds
         
     def open_stream(self):
         with self.stream_lock:
@@ -197,12 +219,15 @@ class AudioPlayer:
         interrupt_grace = min(0.12, max(0.02, self.output_latency_seconds))
         with self.playback_state_lock:
             self.playback_deadline = min(self.playback_deadline, now + interrupt_grace)
+            # 用户主动打断时立即清除回声静默窗口，确保新问题能被立刻接受
+            self.post_speech_mute_deadline = 0.0
 
     def close(self):
         self.stop_event.set()
         self.playing_thread.join(timeout=2)
         with self.playback_state_lock:
             self.playback_deadline = 0.0
+            self.post_speech_mute_deadline = 0.0
 
         with self.stream_lock:
             self.playing_stream.stop_stream()
