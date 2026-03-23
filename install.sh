@@ -9,7 +9,7 @@ REMOTE_USER="ubuntu"
 REMOTE_IP="192.168.41.1"
 REMOTE_DIR="/home/ubuntu"
 
-RELEASE_DIR="tkvoice_release_0.3.20_0320_193403"
+RELEASE_DIR="tkvoice_release_0.3.23_0323_165140"
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 PARENT_DIR="$( dirname "$SCRIPT_DIR" )"
@@ -121,9 +121,11 @@ if ping -c 1 -W 2 "$OLLAMA_REMOTE_HOST" >/dev/null 2>&1; then
     echo "[OK] 已删除本地临时目录 res/ollama"
 
     # 远程执行安装和清理（合并为一个 ssh 会话，sudo 密码只需输入一次）
-    ssh -t "${OLLAMA_REMOTE_USER}@${OLLAMA_REMOTE_HOST}" "cd '${OLLAMA_PATH}' && bash install_ollama.sh '${PARENT_DIR}' '${RELEASE_DIR}' && sudo find '${OLLAMA_PATH}' -mindepth 1 ! -name 'uninstall_ollama.sh' -exec rm -rf {} +"
-    echo "[OK] Ollama 远程安装完成并清理除卸载脚本外的所有文件！"
-    export LLM_URL="http://192.168.41.3:11434"
+    if ssh -t "${OLLAMA_REMOTE_USER}@${OLLAMA_REMOTE_HOST}" "cd '${OLLAMA_PATH}' && bash install_ollama.sh '${PARENT_DIR}' '${RELEASE_DIR}' && sudo find '${OLLAMA_PATH}' -mindepth 1 ! -name 'uninstall_ollama.sh' -exec rm -rf {} +"; then
+        echo "[OK] Ollama 远程安装完成并清理除卸载脚本外的所有文件！"
+    else
+        echo "[WARN] Ollama 远程安装失败（可能无公网访问），跳过，后续步骤继续执行"
+    fi
 else
     echo "[INFO] $OLLAMA_REMOTE_HOST 不可达，在本地安装 Ollama..."
 
@@ -132,8 +134,11 @@ else
         "${RELEASE_DIR}/res/ollama/import_ollama_model.sh"
 
     cd "${OLLAMA_PATH}"
-    ./install_ollama.sh "${PARENT_DIR}" "${RELEASE_DIR}"
-    echo "[OK] Ollama 安装完成"
+    if ./install_ollama.sh "${PARENT_DIR}" "${RELEASE_DIR}"; then
+        echo "[OK] Ollama 安装完成"
+    else
+        echo "[WARN] Ollama 安装失败（可能无公网访问），跳过，后续步骤继续执行"
+    fi
 
     cd "${OLLAMA_PATH}"
     sudo find "${OLLAMA_PATH}" -mindepth 1 ! -name 'uninstall_ollama.sh' -exec rm -rf {} +
