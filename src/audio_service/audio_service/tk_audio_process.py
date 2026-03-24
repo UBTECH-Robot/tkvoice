@@ -367,4 +367,4 @@ if __name__ == '__main__':
 # for development and testing:
 # rm -rf build install log && colcon build --packages-select audio_message audio_service
 # source install/setup.bash
-# MODEL_DIR=/home/nvidia/tkvoice_release_0.3.20_0320_193403/res/ ros2 launch audio_service asr_llm_tts_process_launch.py
+# MODEL_DIR=/home/nvidia/tkvoice_release_0.3.24_0324_090527/res/ ros2 launch audio_service asr_llm_tts_process_launch.py
