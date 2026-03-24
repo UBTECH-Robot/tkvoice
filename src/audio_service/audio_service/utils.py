@@ -53,12 +53,21 @@ class AudioPlayer:
         self.channels = channels
         self.sample_width = sample_width
         self.frames_per_buffer = frames_per_buffer
-        # 待机时输出极低音量提示音，避免“完全静音”
+        # 待机时输出极低音量提示音，避免“完全静音”。
+        # idle_tone_hz 主要影响待机底噪的音色，不是决定起播延迟的主变量。值越大声音越尖锐，值越小声音越低沉，过高过低都可能更容易被人耳察觉。440Hz是常见的A4音高，通常不算刺耳。可以根据实际听感调整。
         self.idle_tone_hz = 440.0
-        self.idle_tone_amplitude = 0.0025 # 这个数值的表现是，第一次播放还是会有吞第一个字的情况，后续再播放没出现吞字情况，这个值的声音几乎听不到
-        self.warmup_tone_seconds = 0.12
-        self.warmup_tone_hz = 880.0
-        self.warmup_tone_amplitude = max(0.02, self.idle_tone_amplitude * 8)
+        # idle_tone_amplitude 越大，空闲时越容易听到底噪，也越可能维持音频链路“已唤醒”状态。
+        self.idle_tone_amplitude = 0.0025 # 这个值尽量保持低，只负责待机保活。值越大声音越大，过大可能会干扰用户体验。可以根据实际听感调整。
+        # warmup_tone_seconds 直接影响首句前的额外等待时长；越长，越不容易吞字，但延迟越明显。
+        self.warmup_tone_seconds = 0.04
+        # warmup_tone_hz 主要影响预热音的听感和频谱分布，不是决定延迟的主变量。
+        # 频率越高通常越容易被人耳察觉，频率较低通常更不刺耳。
+        self.warmup_tone_hz = 330.0
+        # warmup_tone_amplitude 决定预热唤醒强度；越大越容易把链路“叫醒”，但预热声也越明显。
+        self.warmup_tone_amplitude = max(0.08, self.idle_tone_amplitude * 32)
+        # warmup_guard_seconds 是预热结束后、正式语音开始前额外插入的保护静默。
+        # 它几乎只增加延迟，用来给设备/缓冲留出最后一点稳定时间。
+        self.warmup_guard_seconds = 0.01
         # 正常音频切块时长（秒）：块越小越容易被打断，但调度开销会略增加
         self.play_chunk_seconds = 0.04
 
@@ -90,6 +99,12 @@ class AudioPlayer:
             tone_hz=self.warmup_tone_hz,
             amplitude=self.warmup_tone_amplitude,
             duration_seconds=self.warmup_tone_seconds,
+            fade_edges=True,
+        )
+        self.warmup_guard_chunk = bytes(
+            max(1, int(round(self.output_sample_rate * self.warmup_guard_seconds)))
+            * self.output_channels
+            * self.output_sample_width
         )
 
         self.playing_thread = threading.Thread(target=self.keep_playing_audio, daemon=True)
@@ -405,17 +420,20 @@ class AudioPlayer:
 
         return audio_data
 
-    def _build_tone_chunk(self, tone_hz: float, amplitude: float, duration_seconds: float) -> bytes:
+    def _build_tone_chunk(self, tone_hz: float, amplitude: float, duration_seconds: float, fade_edges: bool = False) -> bytes:
         """Generate a low-volume tone chunk used for idle keepalive or short stream warmup."""
         n_frames = max(1, int(round(self.output_sample_rate * duration_seconds)))
         n_samples = n_frames * self.output_channels
+        envelope = 1.0
+        if fade_edges and n_frames > 8:
+            envelope = np.hanning(n_frames).astype(np.float32)
 
         if self.output_sample_width == 2:
             peak = int(32767 * amplitude)
             if peak <= 0:
                 peak = 1
             t = np.arange(n_frames, dtype=np.float32) / float(self.output_sample_rate)
-            wave = (np.sin(2 * np.pi * tone_hz * t) * peak).astype(np.int16)
+            wave = (np.sin(2 * np.pi * tone_hz * t) * envelope * peak).astype(np.int16)
             if self.output_channels > 1:
                 wave = np.repeat(wave, self.output_channels)
             return wave.tobytes()
@@ -425,7 +443,7 @@ class AudioPlayer:
             if peak <= 0:
                 peak = 1
             t = np.arange(n_frames, dtype=np.float32) / float(self.output_sample_rate)
-            wave = (128 + np.sin(2 * np.pi * tone_hz * t) * peak).astype(np.uint8)
+            wave = (128 + np.sin(2 * np.pi * tone_hz * t) * envelope * peak).astype(np.uint8)
             if self.output_channels > 1:
                 wave = np.repeat(wave, self.output_channels)
             return wave.tobytes()
@@ -464,8 +482,13 @@ class AudioPlayer:
                         self.playing_stream.write(self.idle_chunk)
                     break
                 if self.stream_was_idle and self.warmup_chunk:
+                    self._mark_audio_playing(self.warmup_chunk)
                     with self.stream_lock:
                         self.playing_stream.write(self.warmup_chunk)
+                    if self.warmup_guard_chunk:
+                        self._mark_audio_playing(self.warmup_guard_chunk)
+                        with self.stream_lock:
+                            self.playing_stream.write(self.warmup_guard_chunk)
                 self._mark_audio_playing(audio_data)
                 with self.stream_lock:
                     self.playing_stream.write(audio_data)
