@@ -85,7 +85,11 @@ class AudioProcess(Node):
         if self.audio_player and self.audio_player.is_speaking() and not interrupted:
             self.get_logger().info(f"Speaking, [{msg.data}] does not contain interrupt word, ignoring")
             return
-            
+
+        if self.audio_player and self.audio_player.is_in_post_speech_mute():
+            self.get_logger().info(f"Post-speech echo window, [{msg.data}] ignored")
+            return
+
         if self.audio_player and self.audio_player.is_speaking() and interrupted:
             self.get_logger().info(f"Received [{msg.data}] with interrupt word, stopping speech")
             # Generate new request ID for the interrupt
@@ -258,7 +262,7 @@ class AudioProcess(Node):
                         break
 
                     ready_text, ready_pcm = request_segments.pop(next_sequence)
-                    self.audio_player.try_put(request_id, ready_pcm)
+                    self.audio_player.play(ready_pcm, audioid=request_id)
                     self.get_logger().info(f'[{threading.current_thread().name}] [{ready_text}] Queued for playback - {datetime.now().strftime("%H:%M:%S")}')
                     next_sequence += 1
                     next_sequence_by_request[request_id] = next_sequence
