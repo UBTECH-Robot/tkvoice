@@ -5,7 +5,7 @@ set -e
 ./tkvoice.sh stop || true
 
 echo "[1/5] 开始卸载 Ollama ..."
-OLLAMA_REMOTE_HOST="192.168.41.3"
+OLLAMA_REMOTE_HOST="192.168.41.2"
 OLLAMA_REMOTE_USER="nvidia"
 
 # 检查 Ollama 安装位置

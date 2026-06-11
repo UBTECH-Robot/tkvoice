@@ -8,7 +8,7 @@ class SocketConnector:
     def __init__(self, ip: str, port: int):
         self.client_socket = socket(AF_INET, SOCK_STREAM)
         self.server_ip_port = (ip, port)
-        self.run = False  # 默认未连接
+        self.run = False
 
         try:
             self.client_socket.connect(self.server_ip_port)

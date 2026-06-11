@@ -9,7 +9,7 @@ REMOTE_USER="ubuntu"
 REMOTE_IP="192.168.41.1"
 REMOTE_DIR="/home/ubuntu"
 
-RELEASE_DIR="tkvoice_release_0.3.25_0324_101621"
+RELEASE_DIR="tkvoice_release_0.3.32_0611_101018"
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 PARENT_DIR="$( dirname "$SCRIPT_DIR" )"
@@ -75,23 +75,39 @@ rm -rf docker_funasr
 echo "[OK] 已删除本地临时目录 res/docker_funasr"
 
 # ========================
-# 6 安装本地 Python 包和依赖
+# 6 安装 Python 依赖
 # ========================
 echo "[INFO] 安装 Python 依赖包..."
+
+# PEP 668 (externally-managed-environment) 兼容：Ubuntu 24.04 / Python 3.12
+export PIP_BREAK_SYSTEM_PACKAGES=1
+
+# 从 tar 中提取预编译的 wheel（若存在），否则直接从 PyPI 安装
 cd "${PARENT_DIR}"
-tar -xvf "${RELEASE_DIR}.tar" \
-    "${RELEASE_DIR}/res/onnxruntime-1.23.2-cp310-cp310-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl" \
-    "${RELEASE_DIR}/res/onnxruntime_gpu-1.20.1-cp310-cp310-linux_aarch64.whl" \
-    "${RELEASE_DIR}/res/piper_tts-1.4.1-cp39-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.manylinux_2_28_aarch64.whl"
+WHEEL_EXTRACTED=false
+for whl in onnxruntime onnxruntime_gpu piper_tts; do
+    whl_path=$(tar -tf "${RELEASE_DIR}.tar" 2>/dev/null | grep -E "${RELEASE_DIR}/res/${whl}.*\.whl$" | head -1) || true
+    if [ -n "$whl_path" ]; then
+        tar -xvf "${RELEASE_DIR}.tar" "$whl_path"
+        WHEEL_EXTRACTED=true
+    fi
+done
 
-cd "${BASE_DIR}/res"
-python3 -m pip uninstall onnxruntime piper-tts onnxruntime-gpu -y || sudo python3 -m pip uninstall onnxruntime piper-tts onnxruntime-gpu -y || true
-python3 -m pip install --no-cache-dir onnxruntime-1.23.2-cp310-cp310-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl piper_tts-1.4.1-cp39-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.manylinux_2_28_aarch64.whl httpx==0.28.1 websockets==15.0.1
-python3 -m pip uninstall onnxruntime -y || sudo python3 -m pip uninstall onnxruntime -y || true
-python3 -m pip install --no-cache-dir openai onnxruntime_gpu-1.20.1-cp310-cp310-linux_aarch64.whl
+if [ "$WHEEL_EXTRACTED" = true ]; then
+    cd "${BASE_DIR}/res"
+    python3 -m pip uninstall onnxruntime piper-tts onnxruntime-gpu -y 2>/dev/null || sudo python3 -m pip uninstall onnxruntime piper-tts onnxruntime-gpu -y 2>/dev/null || true
+    python3 -m pip install --no-cache-dir onnxruntime*.whl piper_tts*.whl httpx==0.28.1 websockets==15.0.1
+    python3 -m pip uninstall onnxruntime -y 2>/dev/null || sudo python3 -m pip uninstall onnxruntime -y 2>/dev/null || true
+    python3 -m pip install --no-cache-dir openai onnxruntime_gpu*.whl 2>/dev/null || python3 -m pip install --no-cache-dir openai onnxruntime
+    rm -f *.whl
+else
+    # 直接从 PyPI 安装（兼容 Python 3.12）
+    python3 -m pip uninstall onnxruntime piper-tts onnxruntime-gpu -y 2>/dev/null || sudo python3 -m pip uninstall onnxruntime piper-tts onnxruntime-gpu -y 2>/dev/null || true
+    python3 -m pip install --no-cache-dir 'piper-tts[zh]' 'onnxruntime<2,>=1' httpx==0.28.1 websockets==15.0.1 openai
+    # 若环境有 GPU（如 Jetson Orin），尝试安装 GPU 版本
+    python3 -m pip install --no-cache-dir onnxruntime-gpu 2>/dev/null || true
+fi
 echo "[OK] Python 依赖安装完成"
-
-rm -f *.whl
 
 # ========================
 # 7 安装 Ollama
@@ -99,7 +115,7 @@ rm -f *.whl
 cd "${PARENT_DIR}"
 
 # 检查是否需要远程安装 Ollama
-OLLAMA_REMOTE_HOST="192.168.41.3"
+OLLAMA_REMOTE_HOST="192.168.41.2"
 OLLAMA_REMOTE_USER="nvidia"
 OLLAMA_PATH="${BASE_DIR}/res/ollama"
 
@@ -134,7 +150,8 @@ else
         "${RELEASE_DIR}/res/ollama/import_ollama_model.sh"
 
     cd "${OLLAMA_PATH}"
-    if ./install_ollama.sh "${PARENT_DIR}" "${RELEASE_DIR}"; then
+    chmod +x install_ollama.sh import_ollama_model.sh 2>/dev/null || true
+    if bash install_ollama.sh "${PARENT_DIR}" "${RELEASE_DIR}"; then
         echo "[OK] Ollama 安装完成"
     else
         echo "[WARN] Ollama 安装失败（可能无公网访问），跳过，后续步骤继续执行"
@@ -156,6 +173,22 @@ tar -xvf "${RELEASE_DIR}.tar" \
     "${RELEASE_DIR}/src/"
 
 cd "${BASE_DIR}"
+
+echo "[INFO] 加载 ROS2 Jazzy 环境..."
+if [ -f "/opt/ros/jazzy/setup.bash" ]; then
+    source /opt/ros/jazzy/setup.bash
+else
+    echo "[WARN] /opt/ros/jazzy/setup.bash 不存在，尝试自动检测 ROS2..."
+    # 兜底：尝试常见 ROS2 发行版
+    for distro in jazzy humble rolling; do
+        if [ -f "/opt/ros/$distro/setup.bash" ]; then
+            source "/opt/ros/$distro/setup.bash"
+            echo "[INFO] 已加载 /opt/ros/$distro/setup.bash"
+            break
+        fi
+    done
+fi
+
 echo "[INFO] 开始编译 ROS2 包 audio_message 与 audio_service..."
 colcon build --packages-select audio_message audio_service
 echo "[OK] ROS2 包编译完成"

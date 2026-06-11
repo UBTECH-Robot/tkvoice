@@ -6,10 +6,6 @@ import time
 import os
 
 def is_ros2_node_running(node_name):
-    """
-    检查 ROS2 节点是否运行。
-    node_name 可以是 'tk_audio_publisher'，会匹配 /tk_audio_publisher 或 /ns/tk_audio_publisher
-    """
     try:
         output = subprocess.check_output(['ros2', 'node', 'list'], text=True)
         nodes = output.strip().splitlines()
@@ -19,10 +15,6 @@ def is_ros2_node_running(node_name):
         return False
     
 def kill_ros2_node(node_name, timeout=5):
-    """
-    强制关闭指定 ROS2 节点（根据进程名匹配），确保杀掉后再返回。
-    避免误杀当前 launch 自身。
-    """
     try:
         current_pid = str(os.getpid())
         output = subprocess.check_output(['pgrep', '-f', node_name], text=True)
@@ -64,16 +56,19 @@ def generate_launch_description():
         kill_ros2_node("tk_audio_process")    
         print("asr_xf_tts_process节点已强制停止，将会重新启动它")
 
+    sdk_prefix = "bash -c 'source /home/nvidia/xos/setup.bash 2>/dev/null || true; exec \"$@\"' bash"
+
     audio_publisher_node = Node(
         package='audio_service',
         executable='tk_audio_publisher',
         name='tk_audio_publisher',
-        output='screen'
+        output='screen',
+        prefix=sdk_prefix,
     )
     launch_description.append(audio_publisher_node)
-    # 第二个节点：文本音频发布器（依赖前者，因此用 Timer 延迟启动）
+
     asr_sentence_publisher_node = TimerAction(
-        period=2.0,  # 延迟2秒启动，确保 tk_audio_publisher 先启动完成
+        period=2.0,
         actions=[
             Node(
                 package='audio_service',
@@ -84,7 +79,6 @@ def generate_launch_description():
     )
     launch_description.append(asr_sentence_publisher_node)
 
-    # 延迟 3 秒后启动 tk_audio_process
     delayed_process = TimerAction(
         period=3.0,
         actions=[Node(

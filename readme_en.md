@@ -95,7 +95,7 @@ First, log in to the Orin board at 41.2:
 
 1. **Build:**
 ```bash
-cd tkvoice_release_0.3.25_0324_101621
+cd tkvoice_release_0.3.32_0611_101018
 rm -rf build install log && colcon build --packages-select audio_message audio_service
 ```
 
@@ -117,26 +117,26 @@ ros2 launch audio_service asr_llm_tts_process_launch.py
 
 # Installation
 
-release_dir=tkvoice_release_0.3.25_0324_101621
+release_dir=tkvoice_release_0.3.32_0611_101018
 
-1. Transfer `tkvoice_release_0.3.25_0324_101621.tar` from your local computer to the Orin board at 41.2:
+1. Transfer `tkvoice_release_0.3.32_0611_101018.tar` from your local computer to the Orin board at 41.2:
 
 ```bash
-scp tkvoice_release_0.3.25_0324_101621.tar nvidia@192.168.41.2:/home/nvidia
+scp tkvoice_release_0.3.32_0611_101018.tar nvidia@192.168.41.2:/home/nvidia
 ```
 
 The `install.sh` script in the root directory has integrated `/res/docker_funasr/install_asr.sh`, `/res/ollama/install_ollama.sh`, and .whl package installation. Execute it directly, and if everything goes smoothly, Docker, Funasr, Ollama, and Piper installation will be completed directly.
 
-2. After logging in to the Orin board at 41.2, first extract only the `install.sh` script from `tkvoice_release_0.3.25_0324_101621.tar`. Other extraction will be done by the installation script as needed:
+2. After logging in to the Orin board at 41.2, first extract only the `install.sh` script from `tkvoice_release_0.3.32_0611_101018.tar`. Other extraction will be done by the installation script as needed:
 
 ```bash
-tar -xvf tkvoice_release_0.3.25_0324_101621.tar tkvoice_release_0.3.25_0324_101621/install.sh
+tar -xvf tkvoice_release_0.3.32_0611_101018.tar tkvoice_release_0.3.32_0611_101018/install.sh
 ```
 
 3. Enter the directory and run the installation script:
 
 ```bash
-cd tkvoice_release_0.3.25_0324_101621
+cd tkvoice_release_0.3.32_0611_101018
 chmod +x install.sh
 # Note: When executing install.sh, you will be prompted to enter passwords multiple times. 
 # Please pay attention to whether you need to enter the password for the ubuntu user on x86 
@@ -152,16 +152,16 @@ chmod +x install.sh
 4. **Uninstall:**
 
 ```bash
-cd ~/tkvoice_release_0.3.25_0324_101621
+cd ~/tkvoice_release_0.3.32_0611_101018
 chmod +x uninstall.sh
 ./uninstall.sh
 # Note: When executing uninstall.sh, you will be prompted to enter passwords multiple times. 
 # Please pay attention to whether you need to enter the password for the ubuntu user on x86 
 # or the nvidia user on the Orin board. The uninstall script will uninstall Ollama on the Orin 
 # board and Funasr container and image on x86 as well as Docker service.
-# Also note that after executing uninstall.sh, the ~/tkvoice_release_0.3.25_0324_101621 directory 
+# Also note that after executing uninstall.sh, the ~/tkvoice_release_0.3.32_0611_101018 directory 
 # will be deleted, including the uninstall script itself. However, the 
-# ~/tkvoice_release_0.3.25_0324_101621.tar file will not be deleted.
+# ~/tkvoice_release_0.3.32_0611_101018.tar file will not be deleted.
 ```
 
 # Testing and Running
@@ -169,7 +169,7 @@ chmod +x uninstall.sh
 First, log in to the Orin board at 41.2 and enter the directory:
 
 ```bash
-cd tkvoice_release_0.3.25_0324_101621
+cd tkvoice_release_0.3.32_0611_101018
 ```
 
 Then you can use the following commands for management:
@@ -188,5 +188,5 @@ Then you can use the following commands for management:
 ./tkvoice.sh status
 
 # View logs
-tail -f /home/nvidia/tkvoice_release_0.3.25_0324_101621/tkvoice.log
+tail -f /home/nvidia/tkvoice_release_0.3.32_0611_101018/tkvoice.log
 ```

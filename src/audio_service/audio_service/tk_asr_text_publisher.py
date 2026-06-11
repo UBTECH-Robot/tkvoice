@@ -9,7 +9,6 @@ from rclpy.node import Node
 from datetime import datetime
 from audio_message.msg import AudioFrame
 import rclpy
-# from audio_service.utils import FunASRClient
 from audio_service.funasr_client import FunASRClient
 from std_msgs.msg import String
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
@@ -32,7 +31,7 @@ class FunASRTextPublisher(Node):
         )
         self.asr_sentence_publisher = self.create_publisher(String, '/asr_sentence', qos)
 
-        self.subscription  # prevent unused variable warning
+        self.subscription
         self.get_logger().info("FunASRTextPublisher 节点已启动，正在订阅 audio_sentence_frames")
         self.stop_event = threading.Event()
 
@@ -89,7 +88,6 @@ class FunASRTextPublisher(Node):
             self.get_logger().warn("收到空音频数据")
             return
         self.audio_queue.put(msg)
-        # self.get_logger().info(f"收到非空的音频数据已放入队列: {len(msg.data)}")
 
 
 def main(args=None):
@@ -103,9 +101,7 @@ def main(args=None):
         if stop_called:
             return
         stop_called = True
-
         print("接收到终止信号，准备终止程序...")
-
         tk_audio_process.close()
         tk_audio_process.destroy_node()
         print("节点已销毁，正在关闭 rclpy...")

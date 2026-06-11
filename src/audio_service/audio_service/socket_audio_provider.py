@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 from datetime import datetime
 import struct
 from socket import *
@@ -13,12 +11,6 @@ class SocketAudioProvider(SocketConnector):
         super().__init__(ip, port)
 
     def read(self):
-        """
-        从socket读取音频数据，解析并返回音频数据和VAD状态。
-        返回值:
-            audio_data: bytes - 音频数据
-            vad: int - 0: "静音", 1: "开始说话", 2: "持续说话", 3: "结束说话"
-        """
         try:
             header = self.receive_full_data(9)
             if not header:
@@ -42,7 +34,7 @@ class SocketAudioProvider(SocketConnector):
                 vad = body[0]
                 channel = body[1]
                 frame_id = struct.unpack('<I', body[4:8])[0]
-                audio_data = body[8:-1]  # 提取音频数据
+                audio_data = body[8:-1]
             except Exception as e:
                 logging.error(f"解析body出错: {e}, body长度={len(body)}")
                 return None
@@ -93,8 +85,3 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
-
-# for development and testing, run the following command in terminal:
-# cd /home/nvidia/tkvoice/src/audio_service
-# python -m audio_service.socket_audio_provider
-

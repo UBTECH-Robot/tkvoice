@@ -38,11 +38,11 @@ class LLMClient:
     def test_llm_ip(self, timeout=2):
         """
         测试 Ollama 服务运行在哪个 IP 上。
-        备选 IP: 192.168.41.3 和 192.168.41.2
+        备选 IP: 192.168.41.2
         使用 /api/version 接口验证服务可用性。
         返回可用的 IP，若都不可达则返回 None。
         """
-        candidate_ips = ["192.168.41.3", "192.168.41.2"]
+        candidate_ips = ["192.168.41.2"]
         ollama_port = 11434
 
         for ip in candidate_ips:
@@ -60,7 +60,7 @@ class LLMClient:
                 logging.debug(f"[LLM] {ip} 不可达: {e}")
                 continue
 
-        logging.warning("[LLM] 未找到可用的 Ollama 服务 (192.168.41.3, 192.168.41.2)")
+        logging.warning("[LLM] 未找到可用的 Ollama 服务 (192.168.41.2)")
         return None
 
     def _resolve_active_model(self, timeout=5):

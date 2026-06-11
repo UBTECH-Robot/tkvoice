@@ -4,10 +4,6 @@ from launch_ros.actions import Node
 import subprocess
 
 def is_ros2_node_running(node_name):
-    """
-    检查 ROS2 节点是否运行。
-    node_name 可以是 'tk_audio_publisher'，会匹配 /tk_audio_publisher 或 /ns/tk_audio_publisher
-    """
     try:
         output = subprocess.check_output(['ros2', 'node', 'list'], text=True)
         nodes = output.strip().splitlines()
@@ -17,11 +13,7 @@ def is_ros2_node_running(node_name):
         return False
 
 def kill_ros2_node(node_name):
-    """
-    强制关闭指定 ROS2 节点（根据进程名匹配）
-    """
     try:
-        # 使用 pgrep 查找进程
         output = subprocess.check_output(['pgrep', '-f', node_name], text=True)
         pids = output.strip().splitlines()
         for pid in pids:
@@ -35,22 +27,23 @@ def kill_ros2_node(node_name):
 def generate_launch_description():
     launch_description = []
 
-    # 检查 tk_audio_publisher 是否已在运行
     if is_ros2_node_running("tk_audio_publisher"):
         kill_ros2_node("tk_audio_publisher")    
         print("audio_publisher未启动，将会启动它")
+
+    sdk_prefix = "bash -c 'source /home/nvidia/xos/setup.bash 2>/dev/null || true; exec \"$@\"' bash"
 
     audio_publisher_node = Node(
         package='audio_service',
         executable='tk_audio_publisher',
         name='tk_audio_publisher',
-        output='screen'
+        output='screen',
+        prefix=sdk_prefix,
     )
     launch_description.append(audio_publisher_node)
 
-    # 第二个节点：文本音频发布器（依赖前者，因此用 Timer 延迟启动）
     asr_sentence_publisher_node = TimerAction(
-        period=2.0,  # 延迟2秒启动，确保 tk_audio_publisher 先启动完成
+        period=2.0,
         actions=[
             Node(
                 package='audio_service',

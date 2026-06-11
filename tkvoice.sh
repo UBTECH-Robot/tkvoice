@@ -4,6 +4,7 @@ set -e
 WORKDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 LAUNCH_FILE="audio_service asr_llm_tts_process_launch.py"
 LOG_FILE="${WORKDIR}/tkvoice.log"
+# lyre 语音系统由机器人 proc_manager 管理，tkvoice 只需启动 ASR 文本发布和音频处理节点
 NODES=("tk_audio_publisher" "tk_asr_text_publisher" "tk_audio_process")
 export MODEL_DIR="${WORKDIR}/res/"
 
@@ -80,6 +81,9 @@ start() {
 
     cd "$WORKDIR"
     source install/setup.bash
+    # source 机器人 SDK 环境（提供 lyre_msgs）
+    ROBOT_SETUP="${HOME}/xos/setup.bash"
+    [ -f "$ROBOT_SETUP" ] && source "$ROBOT_SETUP"
 
     echo "启动 ROS2 launch 文件: $LAUNCH_FILE"
     mkdir -p "${WORKDIR}/roslogs"
