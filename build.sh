@@ -84,7 +84,23 @@ fi
 echo "[INFO] 生成最终压缩包 ${RELEASE_DIR}.tar ..."
 
 tar -cvf "${RELEASE_DIR}.tar" \
-    -C . src res install.sh uninstall.sh tkvoice.sh --transform="s,^,${RELEASE_DIR}/," \
+    --exclude="res/ollama/ollama-linux-arm64.tar.zst" \
+    --exclude="cosyvoice/third_party" \
+    --exclude="cosyvoice/runtime" \
+    --exclude="cosyvoice/audio" \
+    --exclude="cosyvoice/webui.py" \
+    --exclude="cosyvoice/start.sh" \
+    --exclude="cosyvoice/vllm_example.py" \
+    --exclude="cosyvoice/Dockerfile" \
+    --exclude="cosyvoice/CODE_OF_CONDUCT.md" \
+    --exclude="cosyvoice/FAQ.md" \
+    --exclude="cosyvoice/LICENSE" \
+    --exclude="cosyvoice/README.md" \
+    --exclude="cosyvoice/requirements.txt" \
+    --exclude="cosyvoice/.gitignore" \
+    --exclude="cosyvoice/.gitmodules" \
+    --exclude="cosyvoice/Miniforge3-Linux-aarch64.sh" \
+    -C . src res cosyvoice matcha install.sh uninstall.sh tkvoice.sh --transform="s,^,${RELEASE_DIR}/," \
     -C "${RELEASE_DIR}" version.txt
 
 echo "[OK] 打包完成: ${RELEASE_DIR}.tar"

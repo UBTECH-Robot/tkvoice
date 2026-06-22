@@ -93,8 +93,10 @@ class AudioFileSaverMixin:
                 wav_file.setframerate(resolved_sample_rate)
                 wav_file.writeframes(audio_data)
             self._log_audio_file_info(f"已转换为WAV格式: {self.wav_file}")
+            return self.wav_file
         except Exception as error:
             self._log_audio_file_info(f"保存WAV文件失败: {error}")
+            return None
 
     def save_pcm_file(self, audio_data):
         """保存音频数据为PCM文件"""

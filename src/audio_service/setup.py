@@ -6,7 +6,7 @@ package_name = 'audio_service'
 
 setup(
     name=package_name,
-    version="0.3.32",
+    version="0.3.34",
     packages=find_packages(exclude=['test']),
     data_files=[
         # ('share/' + package_name + '/launch', ['audio_service/launch/asr_sentence_launch.py']),

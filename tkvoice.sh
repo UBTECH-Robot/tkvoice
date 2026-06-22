@@ -7,6 +7,10 @@ LOG_FILE="${WORKDIR}/tkvoice.log"
 # lyre 语音系统由机器人 proc_manager 管理，tkvoice 只需启动 ASR 文本发布和音频处理节点
 NODES=("tk_audio_publisher" "tk_asr_text_publisher" "tk_audio_process")
 export MODEL_DIR="${WORKDIR}/res/"
+export COSYVOICE_DIR="${WORKDIR}"
+export COSYVOICE_MODEL_DIR="/home/nvidia/CosyVoice2-0.5B"
+export MATCHA_DIR="${WORKDIR}/matcha"
+export PYTHONPATH="${WORKDIR}:${PYTHONPATH}"
 
 # ===========================
 # 功能函数

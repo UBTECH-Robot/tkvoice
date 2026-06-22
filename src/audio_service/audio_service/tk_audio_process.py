@@ -15,7 +15,7 @@ import rclpy
 from std_msgs.msg import String
 from audio_service.utils import AudioPlayer
 from audio_service.llm_client import LLMClient
-from audio_service.piper_provider import PiperProvider
+from audio_service.cosyvoice_provider import CosyVoiceProvider
 import signal
 import uuid
 
@@ -43,7 +43,7 @@ class AudioProcess(Node):
         self.request_id_lock = threading.Lock()
 
         # CRITICAL: Initialize TTS service first to get audio parameters
-        self.tts_service = PiperProvider()
+        self.tts_service = CosyVoiceProvider()
         sample_rate, channels, sample_width = self.tts_service.get_audio_param()
         self.get_logger().info(f"音频参数: 采样率={sample_rate}Hz, 声道={channels}, 位深={sample_width*8}bit")
 

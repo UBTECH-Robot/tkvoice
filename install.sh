@@ -9,7 +9,7 @@ REMOTE_USER="ubuntu"
 REMOTE_IP="192.168.41.1"
 REMOTE_DIR="/home/ubuntu"
 
-RELEASE_DIR="tkvoice_release_0.3.32_0611_101018"
+RELEASE_DIR="tkvoice_release_0.3.34_0622_103638"
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 PARENT_DIR="$( dirname "$SCRIPT_DIR" )"
@@ -82,31 +82,12 @@ echo "[INFO] 安装 Python 依赖包..."
 # PEP 668 (externally-managed-environment) 兼容：Ubuntu 24.04 / Python 3.12
 export PIP_BREAK_SYSTEM_PACKAGES=1
 
-# 从 tar 中提取预编译的 wheel（若存在），否则直接从 PyPI 安装
+# 从 PyPI 安装 Python 依赖
 cd "${PARENT_DIR}"
-WHEEL_EXTRACTED=false
-for whl in onnxruntime onnxruntime_gpu piper_tts; do
-    whl_path=$(tar -tf "${RELEASE_DIR}.tar" 2>/dev/null | grep -E "${RELEASE_DIR}/res/${whl}.*\.whl$" | head -1) || true
-    if [ -n "$whl_path" ]; then
-        tar -xvf "${RELEASE_DIR}.tar" "$whl_path"
-        WHEEL_EXTRACTED=true
-    fi
-done
-
-if [ "$WHEEL_EXTRACTED" = true ]; then
-    cd "${BASE_DIR}/res"
-    python3 -m pip uninstall onnxruntime piper-tts onnxruntime-gpu -y 2>/dev/null || sudo python3 -m pip uninstall onnxruntime piper-tts onnxruntime-gpu -y 2>/dev/null || true
-    python3 -m pip install --no-cache-dir onnxruntime*.whl piper_tts*.whl httpx==0.28.1 websockets==15.0.1
-    python3 -m pip uninstall onnxruntime -y 2>/dev/null || sudo python3 -m pip uninstall onnxruntime -y 2>/dev/null || true
-    python3 -m pip install --no-cache-dir openai onnxruntime_gpu*.whl 2>/dev/null || python3 -m pip install --no-cache-dir openai onnxruntime
-    rm -f *.whl
-else
-    # 直接从 PyPI 安装（兼容 Python 3.12）
-    python3 -m pip uninstall onnxruntime piper-tts onnxruntime-gpu -y 2>/dev/null || sudo python3 -m pip uninstall onnxruntime piper-tts onnxruntime-gpu -y 2>/dev/null || true
-    python3 -m pip install --no-cache-dir 'piper-tts[zh]' 'onnxruntime<2,>=1' httpx==0.28.1 websockets==15.0.1 openai
-    # 若环境有 GPU（如 Jetson Orin），尝试安装 GPU 版本
-    python3 -m pip install --no-cache-dir onnxruntime-gpu 2>/dev/null || true
-fi
+python3 -m pip uninstall piper-tts onnxruntime onnxruntime-gpu -y 2>/dev/null || true
+python3 -m pip install --no-cache-dir 'onnxruntime<2,>=1' httpx==0.28.1 websockets==15.0.1 openai
+# 若环境有 GPU（如 Jetson），尝试安装 GPU 版本
+python3 -m pip install --no-cache-dir onnxruntime-gpu 2>/dev/null || true
 echo "[OK] Python 依赖安装完成"
 
 # ========================
@@ -169,7 +150,6 @@ cd "${PARENT_DIR}"
 tar -xvf "${RELEASE_DIR}.tar" \
     "${RELEASE_DIR}/tkvoice.sh" \
     "${RELEASE_DIR}/version.txt" \
-    "${RELEASE_DIR}/res/piper_voices/" \
     "${RELEASE_DIR}/src/"
 
 cd "${BASE_DIR}"

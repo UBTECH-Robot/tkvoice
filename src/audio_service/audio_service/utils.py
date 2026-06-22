@@ -56,18 +56,18 @@ class AudioPlayer:
         # 待机时输出极低音量提示音，避免“完全静音”。
         # idle_tone_hz 主要影响待机底噪的音色，不是决定起播延迟的主变量。值越大声音越尖锐，值越小声音越低沉，过高过低都可能更容易被人耳察觉。440Hz是常见的A4音高，通常不算刺耳。可以根据实际听感调整。
         self.idle_tone_hz = 440.0
-        # idle_tone_amplitude 越大，空闲时越容易听到底噪，也越可能维持音频链路“已唤醒”状态。
-        self.idle_tone_amplitude = 0.0025 # 这个值尽量保持低，只负责待机保活。值越大声音越大，过大可能会干扰用户体验。可以根据实际听感调整。
+        # idle_tone_amplitude 越大，空闲时越容易听到底噪，也越可能维持音频链路"已唤醒"状态。
+        self.idle_tone_amplitude = 0.0 # 改为0，避免句子间的底噪
         # warmup_tone_seconds 直接影响首句前的额外等待时长；越长，越不容易吞字，但延迟越明显。
-        self.warmup_tone_seconds = 0.04
+        self.warmup_tone_seconds = 0.0 # 改为0，去掉句子间的预热音
         # warmup_tone_hz 主要影响预热音的听感和频谱分布，不是决定延迟的主变量。
         # 频率越高通常越容易被人耳察觉，频率较低通常更不刺耳。
         self.warmup_tone_hz = 330.0
-        # warmup_tone_amplitude 决定预热唤醒强度；越大越容易把链路“叫醒”，但预热声也越明显。
-        self.warmup_tone_amplitude = max(0.08, self.idle_tone_amplitude * 32)
+        # warmup_tone_amplitude 决定预热唤醒强度；越大越容易把链路"叫醒"，但预热声也越明显。
+        self.warmup_tone_amplitude = 0.0 # 改为0
         # warmup_guard_seconds 是预热结束后、正式语音开始前额外插入的保护静默。
         # 它几乎只增加延迟，用来给设备/缓冲留出最后一点稳定时间。
-        self.warmup_guard_seconds = 0.01
+        self.warmup_guard_seconds = 0.0 # 改为0
         # 正常音频切块时长（秒）：块越小越容易被打断，但调度开销会略增加
         self.play_chunk_seconds = 0.04
 
@@ -184,18 +184,6 @@ class AudioPlayer:
             return 0.0
 
     def _select_output_sample_rate(self, preferred_rate: int) -> int:
-        default_rate = self.device_info.get('defaultSampleRate')
-        if default_rate:
-            try:
-                default_rate = int(round(float(default_rate)))
-            except (TypeError, ValueError):
-                default_rate = 0
-        else:
-            default_rate = 0
-
-        if default_rate > 0 and default_rate != preferred_rate:
-            logging.info(f"输出采样率使用默认设备原生值: {default_rate}Hz (输入为 {preferred_rate}Hz)")
-            return default_rate
         return preferred_rate
 
     def _select_output_channels(self, preferred_channels: int) -> int:
@@ -424,6 +412,10 @@ class AudioPlayer:
         """Generate a low-volume tone chunk used for idle keepalive or short stream warmup."""
         n_frames = max(1, int(round(self.output_sample_rate * duration_seconds)))
         n_samples = n_frames * self.output_channels
+        
+        if amplitude <= 0:
+            return bytes(n_samples * self.output_sample_width)
+        
         envelope = 1.0
         if fade_edges and n_frames > 8:
             envelope = np.hanning(n_frames).astype(np.float32)
