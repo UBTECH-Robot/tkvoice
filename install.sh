@@ -9,7 +9,7 @@ REMOTE_USER="ubuntu"
 REMOTE_IP="192.168.41.1"
 REMOTE_DIR="/home/ubuntu"
 
-RELEASE_DIR="tkvoice_release_0.3.35_0623_073057"
+RELEASE_DIR="$(basename "$(cd "$(dirname "$0")" && pwd)")"
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 PARENT_DIR="$( dirname "$SCRIPT_DIR" )"
@@ -41,7 +41,11 @@ export PIP_BREAK_SYSTEM_PACKAGES=1
 # 从 PyPI 安装 Python 依赖
 cd "${PARENT_DIR}"
 python3 -m pip uninstall piper-tts onnxruntime onnxruntime-gpu -y 2>/dev/null || true
-python3 -m pip install --no-cache-dir 'onnxruntime<2,>=1' httpx==0.28.1 websockets==15.0.1 openai
+# 从 requirements 文件安装（含具体版本锁定）
+if [ -f requirements_tkvoice.txt ]; then
+    python3 -m pip install --no-cache-dir --break-system-packages -r requirements_tkvoice.txt 2>/dev/null || true
+fi
+python3 -m pip install --no-cache-dir 'onnxruntime<2,>=1' httpx==0.28.1 websockets==15.0.1 openai hyperpyyaml inflect modelscope funasr openai-whisper wetext 'diffusers<0.30' pyarrow pyworld conformer librosa soundfile onnx
 # 若环境有 GPU（如 Jetson），尝试安装 GPU 版本
 python3 -m pip install --no-cache-dir onnxruntime-gpu 2>/dev/null || true
 echo "[OK] Python 依赖安装完成"
