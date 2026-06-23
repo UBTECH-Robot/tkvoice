@@ -9,14 +9,12 @@ REMOTE_USER="ubuntu"
 REMOTE_IP="192.168.41.1"
 REMOTE_DIR="/home/ubuntu"
 
-RELEASE_DIR="tkvoice_release_0.3.34_0622_103638"
+RELEASE_DIR="tkvoice_release_0.3.35_0623_073057"
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 PARENT_DIR="$( dirname "$SCRIPT_DIR" )"
 
 BASE_DIR="${PARENT_DIR}/${RELEASE_DIR}"
-
-echo "[INFO] 解压 res/docker_funasr 到本地临时目录..."
 
 cd "${PARENT_DIR}"
 
@@ -26,53 +24,11 @@ if [ ! -f "${RELEASE_DIR}.tar" ]; then
     exit 1
 fi
 
-# 检查目标路径是否在 tar 中存在
-if ! tar -tf "${RELEASE_DIR}.tar" | grep -q "${RELEASE_DIR}/res/docker_funasr/"; then
-    echo "[ERROR] tar 包中未找到 ${RELEASE_DIR}/res/docker_funasr/"
-    exit 1
-fi
-
 cd "${PARENT_DIR}"
 tar -xvf "${RELEASE_DIR}.tar" \
-    "${RELEASE_DIR}/uninstall.sh" \
-    "${RELEASE_DIR}/res/docker_funasr/"
-# tar --delete -f "${RELEASE_DIR}.tar" "${RELEASE_DIR}/res/docker_funasr/"
+    "${RELEASE_DIR}/uninstall.sh"
 
 cd "${BASE_DIR}"
-
-# ========================
-# 2 检查本地目录是否存在
-# ========================
-if [ ! -d "res/docker_funasr" ]; then
-    echo "[ERROR] 本地目录 res/docker_funasr 不存在，退出安装"
-    exit 1
-fi
-
-# ========================
-# 3 使用 rsync 传输 docker_funasr
-# ========================
-echo "[INFO] 开始传输整个 docker_funasr 目录到 ${REMOTE_USER}@${REMOTE_IP}:${REMOTE_DIR}"
-rsync -av --progress --delete -e "ssh -o StrictHostKeyChecking=no" res/docker_funasr ${REMOTE_USER}@${REMOTE_IP}:${REMOTE_DIR}/
-# rsync 参数说明：
-# -a : archive 模式，保留文件权限、时间戳、符号链接等
-# -v : verbose，显示详细信息
-# --progress : 显示每个文件传输进度
-# --delete : 删除远程多余文件，实现完全同步
-# 注意：源目录末尾没有 / 表示传整个 docker_funasr 目录，而不仅仅是其内容
-echo "[OK] docker_funasr 目录传输完成！"
-
-# ========================
-# 4 在远程服务器上执行安装脚本
-# ========================
-ssh -t ${REMOTE_USER}@${REMOTE_IP} "cd ${REMOTE_DIR}/docker_funasr && bash install_asr.sh"
-echo "[OK] 远程 ASR 服务安装完成"
-
-# ========================
-# 5 删除本地临时目录
-# ========================
-cd "${BASE_DIR}/res"
-rm -rf docker_funasr
-echo "[OK] 已删除本地临时目录 res/docker_funasr"
 
 # ========================
 # 6 安装 Python 依赖
