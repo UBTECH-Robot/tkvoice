@@ -12,6 +12,7 @@ export COSYVOICE_MODEL_DIR="/home/nvidia/CosyVoice2-0.5B"
 export MATCHA_DIR="${WORKDIR}/matcha"
 export PYTHONPATH="${WORKDIR}:${PYTHONPATH}"
 export PRIMARY_MODEL="qwen2.5:1.5b"
+export TTS_WORKERS="1"
 
 # ===========================
 # 功能函数

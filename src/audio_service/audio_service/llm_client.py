@@ -23,7 +23,7 @@ class LLMClient:
         # 检查 primary_model 是否可用，可用则优先使用
         self._resolve_active_model()
 
-        self.sys_message = os.environ.get("SYS_MESSAGE", '永远牢记你是优必选开发的智能助手，名叫天工形者。用中文回答。')
+        self.sys_message = os.environ.get("SYS_MESSAGE", '永远牢记你是优必选开发的智能助手，名叫天工形者。回答简洁明了，尽量30到100个字之间，用中文回答。')
 
         # 句子切分配置
         self.sentence_endings = "。！？.!?"

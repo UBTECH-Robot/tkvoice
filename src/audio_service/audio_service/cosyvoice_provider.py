@@ -37,7 +37,7 @@ class CosyVoiceProvider(AudioFileSaverMixin):
 
         start_time = time.time()
         try:
-            self.cosyvoice = CosyVoice2(self.model_dir, fp16=COSYVOICE_FP16)
+            self.cosyvoice = CosyVoice2(self.model_dir, fp16=COSYVOICE_FP16, load_jit=COSYVOICE_FP16)
             self.sample_rate = self.cosyvoice.sample_rate
             sample_rate, channels, sample_width = self.get_audio_param()
             self.set_audio_params(sample_rate=sample_rate, channels=channels, sample_width=sample_width)
