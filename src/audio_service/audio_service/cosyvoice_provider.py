@@ -18,6 +18,7 @@ MATCHA_DIR = os.environ.get("MATCHA_DIR", os.path.normpath(os.path.join(os.path.
 TTS_GAIN = float(os.environ.get("TTS_GAIN", "2.5"))
 TTS_NORMALIZE = os.environ.get("TTS_NORMALIZE", "1") == "1"
 COSYVOICE_FP16 = os.environ.get("COSYVOICE_FP16", "1") == "1"
+TTS_SPEED = float(os.environ.get("TTS_SPEED", "1.05"))
 
 
 class CosyVoiceProvider(AudioFileSaverMixin):
@@ -87,7 +88,7 @@ class CosyVoiceProvider(AudioFileSaverMixin):
         _t0 = time.time()
         try:
             audio_bytes_list = []
-            for result in self.cosyvoice.inference_sft(text, self.spk_id, stream=False):
+            for result in self.cosyvoice.inference_sft(text, self.spk_id, stream=False, speed=TTS_SPEED):
                 speech = result['tts_speech']
                 audio_np = speech.squeeze().cpu().numpy()
                 if TTS_NORMALIZE:
