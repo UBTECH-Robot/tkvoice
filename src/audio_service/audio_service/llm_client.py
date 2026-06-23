@@ -42,7 +42,7 @@ class LLMClient:
         使用 /api/version 接口验证服务可用性。
         返回可用的 IP，若都不可达则返回 None。
         """
-        candidate_ips = ["192.168.41.2"]
+        candidate_ips = ["192.168.41.2", "127.0.0.1"]
         ollama_port = 11434
 
         for ip in candidate_ips:

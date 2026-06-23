@@ -16,7 +16,7 @@ COSYVOICE_MODEL_DIR = os.environ.get("COSYVOICE_MODEL_DIR", "/home/nvidia/CosyVo
 COSYVOICE_SPEAKER = os.environ.get("COSYVOICE_SPEAKER", "default_speaker")
 MATCHA_DIR = os.environ.get("MATCHA_DIR", os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'matcha')))
 TTS_GAIN = float(os.environ.get("TTS_GAIN", "2.5"))
-TTS_NORMALIZE = os.environ.get("TTS_NORMALIZE", "1") == "1"
+TTS_NORMALIZE = os.environ.get("TTS_NORMALIZE", "0") == "1"
 COSYVOICE_FP16 = os.environ.get("COSYVOICE_FP16", "1") == "1"
 TTS_SPEED = float(os.environ.get("TTS_SPEED", "1.05"))
 

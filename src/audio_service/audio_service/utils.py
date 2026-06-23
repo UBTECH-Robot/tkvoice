@@ -294,29 +294,34 @@ class AudioPlayer:
     def open_stream(self):
         with self.stream_lock:
             last_exc = None
-            for _ in range(3):
+            # Find pipewire device if available
+            pw_idx = None
+            for i in range(self.audio.get_device_count()):
+                name = self.audio.get_device_info_by_index(i).get('name', '').lower()
+                if 'pipewire' in name:
+                    pw_idx = i
+                    break
+            devices_to_try = [(self.device_info['index'], self.device_info['name'])]
+            if pw_idx is not None and pw_idx != self.device_info['index']:
+                devices_to_try.append((pw_idx, 'pipewire'))
+            for dev_idx, dev_name in devices_to_try:
                 try:
-                    device_index = self.device_info['index']
-                    logging.info(f'使用的音频输出设备索引: {device_index}, 设备名称: {self.device_info["name"]}')
+                    logging.info(f'尝试音频输出设备: [{dev_idx}] {dev_name}')
                     stream = self.audio.open(
                         format=self.format,
                         rate=self.output_sample_rate,
                         channels=self.output_channels,
                         output=True,
-                        output_device_index=device_index,
+                        output_device_index=dev_idx,
                         frames_per_buffer=self.frames_per_buffer
                     )
+                    logging.info(f'使用音频输出设备: [{dev_idx}] {dev_name}')
                     return stream
                 except OSError as e:
-                    logging.info(f'PyAudio open_stream报错了：{e}')
-                    traceback.print_exc()
-                    if e.errno == -9997:  # Invalid sample rate
-                        last_exc = e
-                        time.sleep(3)  # 等待一会再试
-                    else:
-                        raise  # 不是采样率的问题，直接抛出
-            # 三次都失败，抛出最后一次的异常
-        raise last_exc
+                    logging.info(f'设备 [{dev_idx}] {dev_name} 打开失败: {e}')
+                    last_exc = e
+                    time.sleep(1)
+            raise last_exc
     
     def stop_other_audio_and_clear_queue(self):
         audioid = self.get_audioid()
