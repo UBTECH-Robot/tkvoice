@@ -23,7 +23,7 @@ class LLMClient:
         # 检查 primary_model 是否可用，可用则优先使用
         self._resolve_active_model()
 
-        self.sys_message = os.environ.get("SYS_MESSAGE", '永远牢记你是优必选开发的智能助手，名叫天工形者。回答简洁明了，尽量30到100个字之间，用中文回答。')
+        self.sys_message = os.environ.get("SYS_MESSAGE", '永远牢记你是优必选开发的智能助手，名叫天工形者。用中文回答。')
 
         # 句子切分配置
         self.sentence_endings = "。！？.!?"
@@ -125,6 +125,9 @@ class LLMClient:
         buffer = ""
         stream = None
 
+        import time as _time
+        _llm_start = _time.time()
+        _first_token = True
         try:
             stream = self._client.chat.completions.create(
                 model=self.llm_model,
@@ -136,6 +139,9 @@ class LLMClient:
             logging.info(f'[NLP] 开始流式请求, user=[{user_input}]')
 
             for chunk in stream:
+                if _first_token and chunk.choices:
+                    _first_token = False
+                    logging.info(f'[NLP] 首Token耗时: {_time.time() - _llm_start:.2f}s')
                 if chunk.choices:
                     content = chunk.choices[0].delta.content or ""
                     assistant_response += content
@@ -175,6 +181,8 @@ class LLMClient:
                     stream.close()
                 except Exception:
                     pass
+
+        logging.info(f'[NLP] 请求 [{user_input}] LLM总耗时: {_time.time() - _llm_start:.2f}s')
 
         # 若还有残留的文本
         if buffer.strip():

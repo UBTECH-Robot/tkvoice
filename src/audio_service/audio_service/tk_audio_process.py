@@ -37,6 +37,7 @@ class AudioProcess(Node):
         self.answer_text_queue_lock = threading.Lock()
         self.asr_sentence_queue = Queue(maxsize=1)
         self.tts_worker_count = max(1, int(os.environ.get("TTS_WORKERS", "5")))
+        self._pipeline_log("初始化", "AudioProcess 节点创建")
         
         # Current request ID for synchronization (using UUID instead of text to handle duplicate questions)
         self.current_request_id = None
@@ -70,6 +71,10 @@ class AudioProcess(Node):
 
         self.get_logger().info(f"AudioProcess node started with {self.tts_worker_count} TTS worker(s)")
 
+    def _pipeline_log(self, stage: str, msg: str):
+        t = datetime.now().strftime('%H:%M:%S.%f')[:-3]
+        self.get_logger().info(f'[PIPE] [{t}] [{stage}] {msg}')
+
     def _drain_queue(self, queue_obj: Queue):
         while True:
             try:
@@ -82,6 +87,9 @@ class AudioProcess(Node):
 
     def on_asr_sentence(self, msg: String):
         """Handle incoming ASR text with interrupt support"""
+        import time as _time
+        _now = _time.time()
+        self._pipeline_log("ASR到达", f"'{msg.data[:30]}...' 耗时(从提问到ASR): ?")
         if not msg.data:
             return
 
@@ -112,6 +120,8 @@ class AudioProcess(Node):
         
         self.get_logger().info(f"Received valid question: [{msg.data}], queuing for processing")
         
+        self._pipeline_log("收到问题", f"'{msg.data[:30]}...'")
+
         # Generate unique request ID to avoid confusion with duplicate questions
         request_id = str(uuid.uuid4())
         with self.request_id_lock:
@@ -149,6 +159,7 @@ class AudioProcess(Node):
                     continue
                 
                 self.get_logger().info(f'[{threading.current_thread().name}] Question [{question_text}] starting stream output - {datetime.now().strftime("%H:%M:%S")}')
+                self._pipeline_log("LLM开始", f"'{question_text[:30]}...'")
                 
                 try:
                     # Stream LLM response sentence by sentence
@@ -209,13 +220,15 @@ class AudioProcess(Node):
                     if not pcm_bytes:
                         continue
                     
+                    self._pipeline_log("TTS完成", f"'{answer_text_str[:30]}...' len={len(pcm_bytes)}")
+                    
                     # Verify this response is still for the current request (not interrupted)
                     if not self._is_current_request(request_id):
                         self.get_logger().debug(f'Response interrupted, discarding audio segment')
                         continue
                     
                     self.audio_segment_queue.put((request_id, sequence_index, answer_text_str, pcm_bytes))
-                    self.get_logger().debug(f'[{threading.current_thread().name}] [{answer_text_str}] Synthesized audio segment #{sequence_index}')
+                    self.get_logger().debug(f'[{threading.current_thread().name}] [{answer_text_str[:30]}] Synthesized audio segment #{sequence_index}')
 
                 except Exception as e:
                     self.get_logger().error(f"[{threading.current_thread().name}] TTS conversion or playback error: {e}")
@@ -268,6 +281,7 @@ class AudioProcess(Node):
                         break
 
                     ready_text, ready_pcm = request_segments.pop(next_sequence)
+                    self._pipeline_log("开始播放", f"'{ready_text[:30]}...' len={len(ready_pcm)}")
                     self.audio_player.play(ready_pcm, audioid=request_id)
                     self.get_logger().info(f'[{threading.current_thread().name}] [{ready_text}] Queued for playback - {datetime.now().strftime("%H:%M:%S")}')
                     next_sequence += 1

@@ -16,6 +16,8 @@ COSYVOICE_MODEL_DIR = os.environ.get("COSYVOICE_MODEL_DIR", "/home/nvidia/CosyVo
 COSYVOICE_SPEAKER = os.environ.get("COSYVOICE_SPEAKER", "default_speaker")
 MATCHA_DIR = os.environ.get("MATCHA_DIR", os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'matcha')))
 TTS_GAIN = float(os.environ.get("TTS_GAIN", "2.5"))
+TTS_NORMALIZE = os.environ.get("TTS_NORMALIZE", "1") == "1"
+COSYVOICE_FP16 = os.environ.get("COSYVOICE_FP16", "1") == "1"
 
 
 class CosyVoiceProvider(AudioFileSaverMixin):
@@ -35,7 +37,7 @@ class CosyVoiceProvider(AudioFileSaverMixin):
 
         start_time = time.time()
         try:
-            self.cosyvoice = CosyVoice2(self.model_dir)
+            self.cosyvoice = CosyVoice2(self.model_dir, fp16=COSYVOICE_FP16)
             self.sample_rate = self.cosyvoice.sample_rate
             sample_rate, channels, sample_width = self.get_audio_param()
             self.set_audio_params(sample_rate=sample_rate, channels=channels, sample_width=sample_width)
@@ -82,13 +84,22 @@ class CosyVoiceProvider(AudioFileSaverMixin):
     def tts(self, text: str) -> bytes:
         if not text or not text.strip():
             return b''
+        _t0 = time.time()
         try:
             audio_bytes_list = []
             for result in self.cosyvoice.inference_sft(text, self.spk_id, stream=False):
                 speech = result['tts_speech']
                 audio_np = speech.squeeze().cpu().numpy()
+                if TTS_NORMALIZE:
+                    _rms = np.sqrt(np.mean(audio_np ** 2) + 1e-8)
+                    _target_rms = 0.12
+                    if _rms > 1e-6:
+                        audio_np = audio_np * (_target_rms / _rms)
                 audio_int16 = np.clip(audio_np * TTS_GAIN * 32767, -32768, 32767).astype(np.int16)
                 audio_bytes_list.append(audio_int16.tobytes())
+            _dt = time.time() - _t0
+            _dur = len(b''.join(audio_bytes_list)) / 2 / self.sample_rate if audio_bytes_list else 0
+            logging.info(f'[TTS] 耗时: {_dt:.2f}s, 语音: {_dur:.1f}s, RTF: {_dt/_dur:.2f}')
             return b''.join(audio_bytes_list)
         except Exception as e:
             logging.error(f"[TTS] 生成音频失败: {e}")
