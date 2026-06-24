@@ -87,6 +87,14 @@ start() {
 
     cd "$WORKDIR"
     source install/setup.bash
+
+    # 确保 Ollama 在运行
+    if ! pgrep -x ollama > /dev/null; then
+        echo "启动 Ollama 服务..."
+        nohup ollama serve > /dev/null 2>&1 &
+        sleep 3
+    fi
+
     # source 机器人 SDK 环境（提供 lyre_msgs）
     ROBOT_SETUP="${HOME}/xos/setup.bash"
     [ -f "$ROBOT_SETUP" ] && source "$ROBOT_SETUP"
