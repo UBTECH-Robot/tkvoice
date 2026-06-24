@@ -1,6 +1,7 @@
 # tkvoice
 
 离线语音交互服务。
+唤醒词"天工天工/天空天空"可打断当前回答
 
 ## 依赖
 
@@ -8,7 +9,7 @@
 - Python 3.12
 - NVIDIA GPU
 
-## 安装
+## 安装(必须联网，安装好后不用联网)
 #拷贝到 41.2 的 Orin 板
 scp tkvoice_release_0.3.38_0623_115538.tar nvidia@192.168.41.2:/home/nvidia
 tar xf tkvoice_release_0.3.38_0623_115538.tar
