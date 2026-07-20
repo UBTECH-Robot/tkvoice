@@ -3,8 +3,6 @@
 离线语音交互服务。
 唤醒词"Walker Walker"可打断当前回答
 
-#bash package.sh              # 自增版本号
-#bash package.sh 1.0.0        # 指定版本号
 
 ## 安装(必须联网，安装好后不用联网)
 #拷贝到 C1
