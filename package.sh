@@ -29,7 +29,7 @@ PKG_FILE="tkvoice_v${NEW_VERSION}.tar"
 echo "=== 打包 tkvoice v${NEW_VERSION} ==="
 
 tar -cvf "$PKG_FILE" \
-    --exclude="venv" \
+    --exclude="tkvoice_venv" \
     --exclude=".git" \
     --exclude="*.tar" \
     --exclude="pipeline.log" \
