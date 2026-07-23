@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 import sys, os, time, json, wave, threading
 from pathlib import Path
 from openai import OpenAI
@@ -25,7 +25,7 @@ POLL = 0.2
 # LLM client
 llm = OpenAI(api_key='vllm', base_url='http://localhost:8001/v1/')
 llm_model = 'Qwen3'
-sys_msg = '你是智能助手，回答简洁，30字以内，用中文。'
+SYS_MSG = os.environ.get('SYS_MESSAGE', "You are a helpful assistant named Walker. Answer in the same language as the user\'s question. Be concise.")
 
 print('[PIPE] Loading TTS...', flush=True)
 t0 = time.time()
@@ -40,7 +40,7 @@ def ask_llm(text):
     try:
         r = llm.chat.completions.create(
             model=llm_model,
-            messages=[{'role': 'system', 'content': sys_msg}, {'role': 'user', 'content': text}],
+            messages=[{'role': 'system', 'content': SYS_MSG}, {'role': 'user', 'content': text}],
             max_tokens=128, stream=False
         )
         return r.choices[0].message.content.strip()
